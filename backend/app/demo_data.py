@@ -1,11 +1,13 @@
 """演示数据（单一来源）：默认 seed.py 与 scripts/seed_student_demo.py 都从这里取。
 
+- INITIAL_PASSWORD：建号时的初始密码（可用环境变量覆盖，见下）
 - GRADES / STUDENTS：当前学生名单
 - DEMO：刘文强 / 刘子龙 的完整测试数据（论文往返 + 周报 + 问答）
 - clear_student：清空某学生的项目 / 往返 / 周报 / 问答（含附件文件）
 - apply_student_demo：把 DEMO 中某位学生的数据写入库（先 clear 再写）
 """
 import json
+import os
 import uuid
 from datetime import date, datetime, timedelta
 
@@ -16,6 +18,11 @@ from .models import (
     Question, Reply, ReportComment, ThesisProject, ThesisRound, WeeklyReport,
 )
 from sqlmodel import select
+
+# 建号初始密码。默认 123456 是为了本地演示方便，
+# ⚠️ 部署到公网前请务必用 GM_SEED_PASSWORD 换成一个强密码，否则
+# teacher 账号等于没有密码（默认值写在公开仓库里，人人可知）。
+INITIAL_PASSWORD = os.environ.get("GM_SEED_PASSWORD", "123456")
 
 GRADES = ["2024级", "2025级", "2026级"]
 

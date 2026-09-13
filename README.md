@@ -65,17 +65,37 @@ cd frontend && npm run build    # 构建产物给 5183 用（frontend/dist）
 
 首次启动自动建表并写入种子数据（`backend/app/seed.py`，仅当库为空时写入）。
 
-**重置数据**：停掉后端，删 `backend/grad_manager.db` 与 `backend/uploads/`，重启即可。
+**重置数据**：停掉后端，删 `backend/grad_manager.db`、`backend/grad_manager.key` 与 `backend/uploads/`，重启即可。
 
-### 演示账号（密码统一 `123456`）
+### 环境变量（部署时用得上）
+
+| 变量 | 默认 | 说明 |
+|------|------|------|
+| `GM_DB_PATH` | `backend/grad_manager.db` | SQLite 库文件路径 |
+| `GM_UPLOAD_DIR` | `backend/uploads` | 附件目录 |
+| `GM_SECRET_KEY` | 见下 | JWT 签名密钥。**多实例部署必须显式设置并保持一致** |
+| `GM_SECRET_KEY_FILE` | 数据库同目录的 `grad_manager.key` | 上面没设时，从这里读；文件不存在就自动生成一份 512 位随机密钥并持久化（权限 600） |
+| `GM_DISABLE_DOCS` | 不设（即开启） | 设 `1` 关闭 `/docs`、`/redoc`、`/openapi.json`。**公网部署建议设** |
+| `GM_SEED_PASSWORD` | `123456` | 首次建库时 teacher 与全部学生的初始密码。**公网部署务必换成强密码** |
+
+> ⚠️ **绝不要把 `SECRET_KEY` 硬编码回代码里**。仓库是公开的，拿到那串常量的人
+> 可以自己签发一个 `role=teacher` 的 token 直接冒充导师登录，连密码都不需要。
+> 现在改成「环境变量 → 密钥文件 → 进程内随机」三级兜底，本来就防的就是这件事。
+> `grad_manager.key` 已在 `.gitignore` 里，**别把它提交上去**。
+
+**改了 `SECRET_KEY` 会让所有已登录的 token 立即失效**（签名对不上），用户重新登录即可，不影响数据。
+
+### 演示账号（初始密码 `123456`，可用 `GM_SEED_PASSWORD` 覆盖）
 
 - 老师：`teacher`（王老师，导师）
 - 2024 级：`liuwenqiang` 刘文强、`liuzilong` 刘子龙、`yanglei` 杨磊
 - 2025 级：`liufuqiang` 刘富强、`panyouqi` 潘有琪、`tongjian` 童健、`zhangchenghe` 张成赫
 - 2026 级：`yangkang` 杨康、`xiexundong` 谢循东、`fengcheng` 冯成
 
-> ⚠️ 当前开发库里 **`liuwenqiang` 的密码不是 `123456`**（被改过，登录会返回「用户名或密码错误」）。
-> 其余账号正常。用 `teacher` + `panyouqi` 演示最稳。
+> ⚠️ **当前开发库里有两个账号的密码已经被改过，不是 `123456`**：`teacher` 与 `liuwenqiang`，
+> 用它们登录会返回「用户名或密码错误」。其余 9 个账号正常。
+> 想恢复成初始密码：删库重启让它重新种子（会清空所有数据），
+> 或在「账号管理 → 编辑 → 重置密码」里改回去。
 
 **灌测试数据**：`cd backend && ./.venv/bin/python scripts/seed_student_demo.py`（可重复执行，先清后写）。
 
@@ -376,4 +396,6 @@ ADDED_COLUMNS = {
 - `temp/`（原型 HTML）已在 `.gitignore` 里，README 里对它的引用**在新克隆的仓库里会失效**；
   若希望原型一起入库，删掉 `.gitignore` 里 `temp/` 那两行。
 - `charts.jsx` / `components.jsx` 是旧版遗留，新版页面已不用，可择机清理。
-- `liuwenqiang` 的密码与文档不一致，需要时用账号管理页重置。
+- 当前开发库里 `teacher` 与 `liuwenqiang` 的密码已被改动（见第三节的提示），
+  需要时在账号管理页重置，或删库重新种子。
+- 公网部署还差一步：**没有自动化部署脚本**（systemd / Nginx / certbot 都得手工配）。

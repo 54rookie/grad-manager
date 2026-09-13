@@ -13,13 +13,12 @@ from sqlmodel import Session, select  # noqa: E402
 
 from app.auth import hash_password  # noqa: E402
 from app.database import UPLOAD_DIR, engine  # noqa: E402
-from app.demo_data import STUDENTS  # noqa: E402
+from app.demo_data import INITIAL_PASSWORD, STUDENTS  # noqa: E402
 from app.models import (  # noqa: E402
     DEFAULT_MILESTONES, Announcement, Grade, Link, Question, Reply,
     ReportComment, ThesisProject, ThesisRound, User, WeeklyReport,
 )
 
-PASSWORD = "123456"
 KEEP_GRADES = sorted({gname for _, _, _, gname in STUDENTS})
 
 
@@ -94,7 +93,7 @@ def main():
         # 7) 建立新学生账号 + 各自论文项目（学生名单来自 app.demo_data，与 seed / demo 脚本保持一致）
         for uname, name, no, gname in STUDENTS:
             u = User(
-                username=uname, password_hash=hash_password(PASSWORD),
+                username=uname, password_hash=hash_password(INITIAL_PASSWORD),
                 name=name, role="student", student_no=no, grade_id=grades[gname].id,
             )
             s.add(u)

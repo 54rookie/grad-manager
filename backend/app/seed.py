@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 
 from .auth import hash_password
 from .database import engine
-from .demo_data import GRADES, STUDENTS, DEMO, apply_student_demo
+from .demo_data import GRADES, STUDENTS, DEMO, INITIAL_PASSWORD, apply_student_demo
 from .models import Announcement, Link, User, Grade, ThesisProject, DEFAULT_MILESTONES
 import json
 from datetime import date, datetime, timedelta
@@ -28,7 +28,7 @@ def seed():
 
         # 老师
         teacher = User(
-            username="teacher", password_hash=hash_password("123456"),
+            username="teacher", password_hash=hash_password(INITIAL_PASSWORD),
             name="王老师", role="teacher",
         )
         s.add(teacher)
@@ -39,7 +39,7 @@ def seed():
         students = []
         for uname, name, no, gname in STUDENTS:
             u = User(
-                username=uname, password_hash=hash_password("123456"),
+                username=uname, password_hash=hash_password(INITIAL_PASSWORD),
                 name=name, role="student", student_no=no, grade_id=by_name[gname].id,
             )
             s.add(u)

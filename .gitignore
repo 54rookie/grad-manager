@@ -36,6 +36,10 @@ backend/uploads/
 # 若希望把原型一起入库，删掉下面这行即可。
 temp/
 
+# ---- JWT 签名密钥（auth.py 首次启动自动生成，绝不能入库）----
+grad_manager.key
+**/grad_manager.key
+
 # ---- 环境变量 ----
 .env
 .env.local

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, Depends, HTTPException
@@ -14,7 +15,16 @@ from .routers import grades, thesis, reports, misc, messages
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
-app = FastAPI(title="研究生管理系统")
+# 生产环境建议关掉自动文档：/docs 会把全部接口和数据结构公开给任何人。
+# 设 GM_DISABLE_DOCS=1 即可关闭（本地开发不设，照常能用 /docs 调试）。
+_DISABLE_DOCS = os.environ.get("GM_DISABLE_DOCS", "").strip().lower() in ("1", "true", "yes", "on")
+
+app = FastAPI(
+    title="研究生管理系统",
+    docs_url=None if _DISABLE_DOCS else "/docs",
+    redoc_url=None if _DISABLE_DOCS else "/redoc",
+    openapi_url=None if _DISABLE_DOCS else "/openapi.json",
+)
 
 app.add_middleware(
     CORSMiddleware,

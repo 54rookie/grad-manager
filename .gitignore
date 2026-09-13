@@ -1,0 +1,41 @@
+# ============================================================
+#  研究生管理系统 · 师门手账
+# ============================================================
+
+# ---- 依赖与虚拟环境 ----
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# ---- 构建产物（用 npm run build 生成，不入库）----
+frontend/dist/
+dist/
+.vite/
+
+# ---- 运行时数据 ----
+# SQLite 库与上传附件：后端首次启动会自动建库并写入种子数据
+backend/grad_manager.db
+backend/grad_manager.db-journal
+backend/backup/  # 临时备份（替换种子前留底用，不入库）
+backend/uploads/
+
+# ---- 系统 / 编辑器 ----
+.DS_Store
+.idea/
+.vscode/
+*.log
+*.swp
+
+# ---- WorkBuddy 会话状态与本地记忆 ----
+.workbuddy/
+
+# ---- 设计原型参考 ----
+# temp/ 下是从纯 HTML 原型迁移用的参考文件（README 有引用）。
+# 若希望把原型一起入库，删掉下面这行即可。
+temp/
+
+# ---- 环境变量 ----
+.env
+.env.local

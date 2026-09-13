@@ -1,0 +1,6 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+sqlmodel>=0.0.16
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.1
+python-multipart>=0.0.9

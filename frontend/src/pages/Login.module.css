@@ -1,0 +1,67 @@
+/* Gargantua 登录页样式 —— 逐条迁自 gargantua.html 的 <style>，改造成 CSS Modules。
+ *
+ * 为什么用 Modules 而不是加前缀塞进全局 styles.css：
+ * 源文件用了 `.field` / `.sky` 这类通用类名，而项目全局里
+ * `.field` 已被用了 19 次（账号弹窗、论文页表单）、`.sky` 撞了 6 次。
+ * 哈希化后类名互不可见，暗黑主题绝无可能污染手账风格。
+ *
+ * 相对源码的三处「减配」，都是为了避免全局副作用：
+ *  1. 删掉 :root{--light/--ink/--energy} —— 已核验这 3 个变量在样式里从未被 var() 引用，
+ *     是死代码；而项目的 --ink 是真实使用的设计令牌，留着会有污染风险。
+ *     color-scheme:dark 改挂到页面根类。
+ *  2. 删掉 html,body{...background:#000;overflow:hidden} —— 改为根元素 position:fixed;inset:0，
+ *     只在本组件内生效，不去动全局 body。
+ *  3. ::selection 与 prefers-reduced-motion 里的 * 选择器收窄到页面子树。
+ *  4. *{box-sizing:border-box} 删掉：项目全局已有同一句。
+ */
+
+/* 页面根：铺满视口，不参与外层文档流 */
+.universe {
+  position: fixed;
+  inset: 0;
+  color-scheme: dark;
+  background: #000;
+  font-family: "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  isolation: isolate;
+  overflow: hidden;
+}
+.universe *, .universe *::before, .universe *::after { box-sizing: border-box; }
+.universe button, .universe input { font: inherit; }
+.universe button { -webkit-tap-highlight-color: transparent; }
+.universe ::selection { background: #cbaa77; color: #101010; }
+
+/* 根元素的定位已在上方 .universe 里统一处理 */
+.sky,.flight,.fallback{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.sky{z-index:0}.flight{z-index:1}.fallback{z-index:-1;background:radial-gradient(ellipse at 50% 46%,#56341926,transparent 60%)}
+.fallback-hole{position:absolute;left:52%;top:44%;width:min(52vh,72vw);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:#000;box-shadow:0 0 2px 2px #fff9eb,0 0 12px 5px #ffddac,0 0 44px 12px #a9683290}
+.fallback-disk{position:absolute;left:-20%;right:-20%;top:45%;height:14%;border-radius:50%;border:9px solid #f8e4c7;box-shadow:0 0 22px #ffebc8,inset 0 0 22px #d09b64,0 0 90px #b97a43;transform:rotate(-7deg);animation:fallback-breathe 15s ease-in-out infinite}
+@keyframes fallback-breathe{50%{filter:brightness(1.3);transform:rotate(-6deg) scaleY(1.07)}}
+.edge{position:absolute;inset:0;z-index:2;pointer-events:none;box-shadow:inset 0 0 10vw 2vw #0005;background:linear-gradient(0deg,#0008,transparent 15%,transparent 96%,#0004)}
+.hud{position:absolute;z-index:4;bottom:max(37px,env(safe-area-inset-bottom));left:50%;width:460px;max-width:calc(100% - 52px);transform:translateX(-50%);transition:opacity 1.8s,filter 1.8s;opacity:.68}
+.hud::before{content:"";position:absolute;inset:-30px -55px;z-index:-1;background:radial-gradient(ellipse,#0009,transparent 68%);pointer-events:none}
+.controls{display:grid;grid-template-columns:1fr 1fr 48px;align-items:center;gap:22px;padding:8px 0;position:relative}
+.field{display:flex;align-items:center;height:45px;min-width:0;position:relative;border-bottom:1px solid #e9ddc832;transition:border-color .5s,filter .5s}
+.field::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,#ffebc7,transparent);transform:scaleX(0);transition:transform .65s;box-shadow:0 0 12px #f4d29680}
+.field:focus-within::after{transform:scaleX(1)}
+.field::before{content:"";pointer-events:none;position:absolute;inset:0;background:linear-gradient(90deg,transparent,#fce7bd09,transparent);background-size:200% 100%;opacity:0;transition:opacity .4s}
+.field:focus-within::before{opacity:1;animation:scan 2.8s linear infinite}
+@keyframes scan{to{background-position:200% 0}}
+.field-icon{flex:none;width:15px;height:15px;stroke:#bcb8af;stroke-width:1;fill:none;transition:stroke .4s}
+.field:focus-within .field-icon{stroke:#fff0d7}
+.field input{min-width:0;width:100%;height:100%;border:0;outline:0;background:none;color:#f8ead3;padding:0 8px 0 13px;font-size:13px;letter-spacing:.12em;caret-color:#ffe6bc}
+.field input::placeholder{color:#c4c0b5b3;font-size:11px;letter-spacing:.22em}.field input:-webkit-autofill{-webkit-text-fill-color:#f8ead3;box-shadow:0 0 0 1000px #121110 inset;transition:background-color 9999s}
+.field:has([aria-invalid="true"]){border-bottom-color:#dc8c65}
+.launch{position:relative;height:46px;width:46px;border-radius:50%;border:1px solid #e5d2ae70;color:#e9dcc4;background:radial-gradient(circle,#e8d4af0b,transparent 70%);display:grid;place-items:center;cursor:pointer;outline:0;transition:box-shadow .65s,border-color .5s,background .5s,transform .5s}
+.launch::after{content:"";position:absolute;inset:-5px;border:1px solid #e4cca93b;border-radius:50%;border-left-color:transparent;border-bottom-color:transparent;opacity:0;transform:rotate(-80deg);transition:opacity .4s,transform 1.2s}
+.launch:hover,.launch:focus-visible{background:#e9d6b718;border-color:#ffedce;box-shadow:0 0 32px #edcd9630,inset 0 0 18px #e0bd8017;transform:scale(1.07)}
+.launch:hover::after,.launch:focus-visible::after{opacity:1;transform:rotate(120deg)}
+.launch:active{transform:scale(.95)}.launch svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1;transition:transform .6s}.launch:hover svg{transform:translateX(2px)}.launch:disabled{cursor:wait}
+.launch .progress{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);opacity:0}.progress circle{stroke:#fff0d4;stroke-width:1.3;fill:none;stroke-dasharray:132;stroke-dashoffset:132}.engaging .launch .progress{opacity:1}.engaging .launch>svg:first-child{opacity:.35}
+.hud:hover,.hud:focus-within{opacity:1;filter:drop-shadow(0 0 20px #d9c09215)}.quiet .hud{opacity:.16}.quiet .hud:hover,.quiet .hud:focus-within{opacity:1}.immersed .hud{opacity:0;pointer-events:none}.engaging .hud{opacity:.5;pointer-events:none}
+.form-status{position:absolute;top:66px;left:0;right:0;text-align:center;color:#d0bca0;font-size:11px;letter-spacing:.12em;opacity:0;transition:opacity .4s;pointer-events:none}.form-status.visible{opacity:1}
+.fullscreen{position:absolute;z-index:5;top:max(22px,env(safe-area-inset-top));right:max(24px,env(safe-area-inset-right));width:38px;height:38px;padding:10px;border:0;background:none;color:#f1dfbd;opacity:.30;cursor:pointer;transition:opacity .5s;outline:0}.fullscreen:hover,.fullscreen:focus-visible{opacity:.9}.fullscreen svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:.9}.quiet .fullscreen{opacity:.10}.quiet .fullscreen:hover,.quiet .fullscreen:focus-visible{opacity:.9}
+.arrival{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:0;background:#000}.arrived .arrival{animation:arrival 2.4s ease-out}@keyframes arrival{0%{opacity:1}100%{opacity:0}}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media(max-width:600px){.hud{bottom:max(38px,env(safe-area-inset-bottom));max-width:calc(100% - 42px);width:400px}.controls{grid-template-columns:1fr 1fr 40px;gap:14px}.launch{width:40px;height:40px}.field{height:43px}.field input{font-size:16px;letter-spacing:.03em;padding-left:10px}.field input::placeholder{font-size:11px}.field-icon{width:13px;height:13px}.fullscreen{top:15px;right:15px}}
+@media(max-height:500px){.hud{bottom:17px}.form-status{top:58px;font-size:10px}}
+@media(prefers-reduced-motion:reduce){.universe *,.universe *::before,.universe *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}.quiet .hud{opacity:.68}}

@@ -65,6 +65,9 @@ cd frontend && npm run build    # 构建产物给 5183 用（frontend/dist）
 
 首次启动自动建表并写入种子数据（`backend/app/seed.py`，仅当库为空时写入）。
 
+> 🚀 **要部署到服务器（阿里云 ECS + 域名 + HTTPS）请看 [`DEPLOY.md`](./DEPLOY.md)** ——
+> 里面是从打包、上传、systemd、Nginx、CDN 到验收和故障排查的完整流程，可直接照做。
+
 **重置数据**：停掉后端，删 `backend/grad_manager.db`、`backend/grad_manager.key` 与 `backend/uploads/`，重启即可。
 
 ### 环境变量（部署时用得上）
@@ -398,4 +401,4 @@ ADDED_COLUMNS = {
 - `charts.jsx` / `components.jsx` 是旧版遗留，新版页面已不用，可择机清理。
 - 当前开发库里 `teacher` 与 `liuwenqiang` 的密码已被改动（见第三节的提示），
   需要时在账号管理页重置，或删库重新种子。
-- 公网部署还差一步：**没有自动化部署脚本**（systemd / Nginx / certbot 都得手工配）。
+- 公网部署流程已固化在 [`DEPLOY.md`](./DEPLOY.md)（手工照做即可，尚未脚本化）。

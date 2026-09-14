@@ -24,7 +24,7 @@ GRADES = [
 USERS = [
     {
         'username': 'teacher',
-        'name': '曾明伟',
+        'name': '曾老师',
         'role': 'teacher',
         'student_no': None,
         'grade': None,

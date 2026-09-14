@@ -16,6 +16,7 @@ from sqlmodel import Session
 from .database import UPLOAD_DIR
 from .models import (
     Question, Reply, ReportComment, ThesisProject, ThesisRound, WeeklyReport,
+    upgrade_legacy_milestones,
 )
 from sqlmodel import select
 
@@ -195,7 +196,11 @@ def apply_student_demo(s: Session, teacher, stu, cfg: dict) -> dict:
 
     project = ThesisProject(
         student_id=stu.id, title=cfg["title"], stage=cfg["stage"],
-        progress=cfg["progress"], milestones_json=json.dumps(cfg["milestones"], ensure_ascii=False),
+        progress=cfg["progress"],
+        # DEMO 里写的是旧的 6 节点结构，落库前按同一份映射升级成 8节点×2轨道
+        milestones_json=json.dumps(
+            upgrade_legacy_milestones(cfg["milestones"]) or cfg["milestones"],
+            ensure_ascii=False),
     )
     s.add(project)
     s.commit()

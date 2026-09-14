@@ -20,9 +20,6 @@ import s from './Login.module.css'
 
 const MIN_WARP_MS = 1600   // 穿越动画至少播这么久，再等 API 一起放行
 const ARRIVAL_MS = 260     // .arrival 黑屏淡出播完再跳路由
-// 旧的登录页提示里写的是 zhangsan，但库里根本没有这个账号（学生是 liuwenqiang /
-// panyouqi / tongjian 这批）。这里改成真实存在的演示账号，免得照着提示登不进去。
-const HINT = '演示账号：teacher / 123456（老师）· panyouqi / 123456（学生）'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -34,7 +31,7 @@ export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)          // 按钮锁定 + .engaging
-  const [status, setStatus] = useState(HINT)       // #form-status 文案
+  const [status, setStatus] = useState('')         // #form-status 文案（只用来报错，不再放演示账号提示）
   const [invalid, setInvalid] = useState(null)     // 'account' | 'password' | null
   const [quiet, setQuiet] = useState(false)        // 闲置后 HUD 淡出
   const [immersed, setImmersed] = useState(false)  // h 键沉浸模式
@@ -160,7 +157,7 @@ export default function Login() {
   const onInput = (setter) => (e) => {
     setter(e.target.value)
     setInvalid(null)
-    setStatus((cur) => (cur === HINT ? cur : ''))
+    setStatus('')
     engineRef.current?.wake()
   }
 
@@ -199,7 +196,7 @@ export default function Login() {
             <label className={s['sr-only']} htmlFor="account">账号</label>
             <input
               ref={accountRef} id="account" name="username" type="text"
-              placeholder="账号" autoComplete="username" maxLength={80}
+              placeholder="请输入账号" autoComplete="username" maxLength={80}
               autoCapitalize="none" spellCheck="false" required disabled={busy}
               aria-describedby="form-status" aria-invalid={invalid === 'account' || undefined}
               value={username} onChange={onInput(setUsername)}
@@ -213,7 +210,7 @@ export default function Login() {
             <label className={s['sr-only']} htmlFor="password">密码</label>
             <input
               ref={passwordRef} id="password" name="password" type="password"
-              placeholder="密码" autoComplete="current-password" required disabled={busy}
+              placeholder="输入密码 如：123456" autoComplete="current-password" required disabled={busy}
               aria-describedby="form-status" aria-invalid={invalid === 'password' || undefined}
               value={password} onChange={onInput(setPassword)}
             />

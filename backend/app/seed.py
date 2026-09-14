@@ -1,12 +1,46 @@
-"""首次启动时写入完整演示数据集（与 scripts/seed_student_demo.py 共享 app.demo_data）。"""
+"""空库首次启动时写入演示数据 —— 数据源是 `app/seed_snapshot.py`。
+
+那份快照由 `scripts/export_seed_snapshot.py` 从真实数据库导出，
+所以「空库 + 跑一次 seed」得到的结果与导出时的库**完全一致**
+（日期是冻结的绝对日期，换一天跑也一样）。
+
+想改演示数据：先把库调成想要的样子，再重新导出，**不要手改快照**。
+
+与之并存的两个维护脚本用途不同，别搞混：
+  - `scripts/reset_students.py`     按 demo_data.STUDENTS 重建账号与空白项目
+  - `scripts/seed_student_demo.py`  给指定学生重灌往返 / 周报 / 问答（数据在 demo_data.DEMO）
+"""
+import json
+import uuid
+from datetime import datetime
+from pathlib import Path
+
 from sqlmodel import Session, select
 
+from . import seed_snapshot as SNAP
 from .auth import hash_password
-from .database import engine
-from .demo_data import GRADES, STUDENTS, DEMO, INITIAL_PASSWORD, apply_student_demo
-from .models import Announcement, Link, User, Grade, ThesisProject, DEFAULT_MILESTONES
-import json
-from datetime import date, datetime, timedelta
+from .database import UPLOAD_DIR, engine
+from .demo_data import INITIAL_PASSWORD
+from .models import (
+    Announcement, Grade, Link, Question, Reply, ReportComment, Setting,
+    ThesisProject, ThesisRound, User, WeeklyReport, RISK_CONFIG_KEY,
+)
+
+
+def _dt(value: str | None):
+    """快照里的时间戳是绝对时间字符串，原样解析。"""
+    return datetime.fromisoformat(value) if value else None
+
+
+def _write_attachment(orig: str) -> str:
+    """按原始文件名写出一份演示附件，返回新生成的存储名。
+
+    ⚠️ 存储名是 uuid，每次跑都不同 —— 这是「无法逐字复现」的三处之一；
+    界面显示的是 student_file_orig / teacher_file_orig，那部分是一致的。
+    """
+    stored = f"{uuid.uuid4().hex}{Path(orig).suffix}"
+    (UPLOAD_DIR / stored).write_text(SNAP.ATTACHMENTS.get(orig, ""), encoding="utf-8")
+    return stored
 
 
 def seed():
@@ -15,78 +49,109 @@ def seed():
         if s.exec(select(User)).first():
             return
 
-        # 年级
-        grades = []
-        for n in GRADES:
-            g = Grade(name=n)
+        # ---------- 年级 ----------
+        grades = {}
+        for name in SNAP.GRADES:
+            g = Grade(name=name)
             s.add(g)
-            grades.append(g)
-        s.commit()
-        for g in grades:
+            s.commit()
             s.refresh(g)
-        by_name = {g.name: g for g in grades}
+            grades[name] = g
 
-        # 老师
-        teacher = User(
-            username="teacher", password_hash=hash_password(INITIAL_PASSWORD),
-            name="王老师", role="teacher",
-        )
-        s.add(teacher)
-        s.commit()
-        s.refresh(teacher)
-
-        # 10 位学生
-        students = []
-        for uname, name, no, gname in STUDENTS:
-            u = User(
-                username=uname, password_hash=hash_password(INITIAL_PASSWORD),
-                name=name, role="student", student_no=no, grade_id=by_name[gname].id,
+        # ---------- 账号（老师排第一）----------
+        users = {}
+        for u in SNAP.USERS:
+            row = User(
+                username=u["username"], name=u["name"], role=u["role"],
+                student_no=u["student_no"],
+                grade_id=grades[u["grade"]].id if u["grade"] else None,
+                password_hash=hash_password(INITIAL_PASSWORD),
             )
-            s.add(u)
-            students.append(u)
-        s.commit()
-        for u in students:
-            s.refresh(u)
+            s.add(row)
+            s.commit()
+            s.refresh(row)
+            users[u["username"]] = row
 
-        # 为每位学生建一个空白论文项目（演示两位学生后续由 apply_student_demo 覆盖）
-        today = date.today()
-        empty_titles = [
-            "面向边缘计算的轻量级模型压缩方法研究",   # liuwenqiang → 被 DEMO 覆盖
-            "知识图谱驱动的智能问答系统设计与实现",     # liuzilong → 被 DEMO 覆盖
-            "面向低资源场景的机器翻译方法",
-            "城市热力图数据可视化平台设计",
-            "多模态内容审核系统的设计与实现",
-            "深度伪造视频检测的关键技术研究",
-            "基于强化学习的工业排程优化",
-            "自适应推荐系统的可解释性研究",
-            "大规模图神经网络的分布式训练",
-            "面向边缘场景的联邦学习方法",
-        ]
-        for stu, title in zip(students, empty_titles):
-            ms = json.loads(json.dumps(DEFAULT_MILESTONES))
-            base = today - timedelta(days=120)
-            for j, m in enumerate(ms):
-                plan_d = base + timedelta(days=j * 30)
-                m["plan"] = str(plan_d)
-            s.add(ThesisProject(
-                student_id=stu.id, title=title, stage="开题", progress=10,
-                milestones_json=json.dumps(ms, ensure_ascii=False),
+        # ---------- 论文项目（含 8 节点 × 2 轨道里程碑）----------
+        projects = {}
+        for p in SNAP.PROJECTS:
+            row = ThesisProject(
+                student_id=users[p["student"]].id,
+                title=p["title"], stage=p["stage"], progress=p["progress"],
+                risk_override=p["risk_override"],
+                milestones_json=json.dumps(p["milestones"], ensure_ascii=False),
+            )
+            s.add(row)
+            s.commit()
+            s.refresh(row)
+            projects[p["student"]] = row
+
+        # ---------- 多轮往返 + 附件 ----------
+        for r in SNAP.ROUNDS:
+            s.add(ThesisRound(
+                project_id=projects[r["student"]].id,
+                round_no=r["round_no"],
+                student_text=r["student_text"],
+                student_file=_write_attachment(r["student_file"]) if r["student_file"] else None,
+                student_file_orig=r["student_file"],
+                teacher_comment=r["teacher_comment"],
+                teacher_file=_write_attachment(r["teacher_file"]) if r["teacher_file"] else None,
+                teacher_file_orig=r["teacher_file"],
+                submitted_at=_dt(r["submitted_at"]),
+                feedback_at=_dt(r["feedback_at"]),
             ))
         s.commit()
 
-        # 给刘文强、刘子龙灌入完整测试数据（论文往返 / 周报 / 问答）
-        for stu, uname in zip(students, [s[0] for s in STUDENTS]):
-            if uname in DEMO:
-                apply_student_demo(s, teacher, stu, DEMO[uname])
-
-        # 公告 / 链接（从原 seed 平移过来）
-        s.add(Announcement(
-            author_id=teacher.id, title="中期检查安排",
-            content="各位同学：中期检查定于本月 20 日下午 2 点在实验楼 301 进行，"
-                      "请提前准备好中期报告和演示材料。",
-        ))
-        s.add(Link(title="学校图书馆", url="https://www.example.edu/library", created_by=teacher.id))
-        s.add(Link(title="知网", url="https://www.cnki.net", created_by=teacher.id))
-
+        # ---------- 周报 + 点评 ----------
+        week_ids = {}
+        for r in SNAP.REPORTS:
+            row = WeeklyReport(
+                student_id=users[r["student"]].id, week=r["week"],
+                content_md=r["content_md"],
+                created_at=_dt(r["created_at"]), updated_at=_dt(r["updated_at"]),
+            )
+            s.add(row)
+            s.commit()
+            s.refresh(row)
+            week_ids[(r["student"], r["week"])] = row.id
+        for c in SNAP.REPORT_COMMENTS:
+            s.add(ReportComment(
+                report_id=week_ids[(c["student"], c["week"])],
+                author_id=users[c["author"]].id,
+                content=c["content"], created_at=_dt(c["created_at"]),
+            ))
         s.commit()
-        print(f"种子数据已写入：teacher/123456 + 10 位学生（{', '.join(u[0] for u in STUDENTS)}/123456），并给刘文强 / 刘子龙灌完整测试数据")
+
+        # ---------- 问答 ----------
+        q_ids = []
+        for q in SNAP.QUESTIONS:
+            row = Question(author_id=users[q["author"]].id, content=q["content"],
+                           created_at=_dt(q["created_at"]))
+            s.add(row)
+            s.commit()
+            s.refresh(row)
+            q_ids.append(row.id)
+        for r in SNAP.REPLIES:
+            s.add(Reply(question_id=q_ids[r["question"]], author_id=users[r["author"]].id,
+                        content=r["content"], created_at=_dt(r["created_at"])))
+        s.commit()
+
+        # ---------- 公告 / 常用链接 ----------
+        for a in SNAP.ANNOUNCEMENTS:
+            s.add(Announcement(author_id=users[a["author"]].id, title=a["title"],
+                               content=a["content"], created_at=_dt(a["created_at"])))
+        for l in SNAP.LINKS:
+            s.add(Link(title=l["title"], url=l["url"], created_by=users[l["created_by"]].id))
+        s.commit()
+
+        # ---------- 风险基准配置 ----------
+        if SNAP.RISK_CONFIG:
+            s.add(Setting(key=RISK_CONFIG_KEY,
+                          value=json.dumps(SNAP.RISK_CONFIG, ensure_ascii=False)))
+            s.commit()
+
+        print(
+            f"种子数据已写入：{len(SNAP.USERS)} 个账号（初始密码见 GM_SEED_PASSWORD）"
+            f" + {len(SNAP.PROJECTS)} 个论文项目 + {len(SNAP.ROUNDS)} 轮往返"
+            f" + {len(SNAP.REPORTS)} 份周报 + {len(SNAP.QUESTIONS)} 条提问"
+        )

@@ -6,7 +6,7 @@
 import os
 from pathlib import Path
 
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import SQLModel, create_engine, Session, select
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = Path(os.environ.get("GM_DB_PATH", BASE_DIR / "grad_manager.db"))
@@ -35,9 +35,40 @@ def _ensure_columns():
         conn.commit()
 
 
+def _migrate_milestones():
+    """把旧版「6 节点·单论文」的里程碑升级成「8 节点 × 2 论文轨道」。
+
+    判定依据：新版每项都带 track 字段，旧版没有。
+    幂等 —— 已经是新结构的直接跳过，所以每次启动都能放心调。
+    只把旧的 actual/plan 按标签搬到「论文 1」轨道，其它字段一律不动。
+    """
+    import json
+
+    from .models import ThesisProject, upgrade_legacy_milestones
+
+    with Session(engine) as session:
+        changed = 0
+        for p in session.exec(select(ThesisProject)).all():
+            try:
+                ms = json.loads(p.milestones_json or "[]")
+            except json.JSONDecodeError:
+                continue
+            fresh = upgrade_legacy_milestones(ms)
+            if fresh is None:
+                continue  # 已经是新结构，或空数据
+            p.milestones_json = json.dumps(fresh, ensure_ascii=False)
+            session.add(p)
+            changed += 1
+        if changed:
+            session.commit()
+            print(f"[migrate] 已把 {changed} 份旧里程碑升级为 8 节点 × 2 论文轨道"
+                  f"（映射表见 models.LEGACY_LABEL_MAP）")
+
+
 def init_db():
     SQLModel.metadata.create_all(engine)
     _ensure_columns()
+    _migrate_milestones()
 
 
 def get_session():

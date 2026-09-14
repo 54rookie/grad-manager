@@ -67,6 +67,9 @@ cd frontend && npm run build    # 构建产物给 5183 用（frontend/dist）
 
 > 🚀 **要部署到服务器（阿里云 ECS + 域名 + HTTPS）请看 [`DEPLOY.md`](./DEPLOY.md)** ——
 > 里面是从打包、上传、systemd、Nginx、CDN 到验收和故障排查的完整流程，可直接照做。
+>
+> 🔄 **线上已经部署过、现在要更新到新版本，看 [`UPDATE.md`](./UPDATE.md)** ——
+> 重点是「哪些东西永远不能覆盖」、什么改动要不要重启，以及给 AI 的分步执行清单。
 
 **重置数据**：停掉后端，删 `backend/grad_manager.db`、`backend/grad_manager.key` 与 `backend/uploads/`，重启即可。
 

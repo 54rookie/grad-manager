@@ -49,7 +49,9 @@
 .field-icon{flex:none;width:15px;height:15px;stroke:#bcb8af;stroke-width:1;fill:none;transition:stroke .4s}
 .field:focus-within .field-icon{stroke:#fff0d7}
 .field input{min-width:0;width:100%;height:100%;border:0;outline:0;background:none;color:#f8ead3;padding:0 8px 0 13px;font-size:13px;letter-spacing:.12em;caret-color:#ffe6bc}
-.field input::placeholder{color:#c4c0b5b3;font-size:11px;letter-spacing:.22em}.field input:-webkit-autofill{-webkit-text-fill-color:#f8ead3;box-shadow:0 0 0 1000px #121110 inset;transition:background-color 9999s}
+/* 占位符要放下「输入密码 如：123456」这种长文案，
+   字距从 .22em 收到 .02em —— 否则会顶到输入框右边被裁掉 */
+.field input::placeholder{color:#c4c0b5b3;font-size:11px;letter-spacing:.02em}.field input:-webkit-autofill{-webkit-text-fill-color:#f8ead3;box-shadow:0 0 0 1000px #121110 inset;transition:background-color 9999s}
 .field:has([aria-invalid="true"]){border-bottom-color:#dc8c65}
 .launch{position:relative;height:46px;width:46px;border-radius:50%;border:1px solid #e5d2ae70;color:#e9dcc4;background:radial-gradient(circle,#e8d4af0b,transparent 70%);display:grid;place-items:center;cursor:pointer;outline:0;transition:box-shadow .65s,border-color .5s,background .5s,transform .5s}
 .launch::after{content:"";position:absolute;inset:-5px;border:1px solid #e4cca93b;border-radius:50%;border-left-color:transparent;border-bottom-color:transparent;opacity:0;transform:rotate(-80deg);transition:opacity .4s,transform 1.2s}

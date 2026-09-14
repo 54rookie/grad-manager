@@ -1283,6 +1283,93 @@ textarea { resize: vertical; line-height: 1.8; }
 .pg-progress .svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
 
 .pg-progress .hero { padding: 30px 32px 26px; margin-bottom: 40px; overflow: visible; }
+.pg-progress .hero-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pg-progress .btn-risk-cfg {
+  font: inherit; font-size: 12.5px; font-weight: 900; letter-spacing: .5px; cursor: pointer;
+  padding: 9px 16px; border-radius: 13px; color: var(--ink-2);
+  background: #fffaf0; border: 2px solid #e8d9bc; box-shadow: 0 3px 0 #e8d9bc;
+  transition: transform .25s var(--spring), box-shadow .2s, color .25s, border-color .25s;
+}
+.pg-progress .btn-risk-cfg:hover { border-color: var(--sun); color: var(--amber); transform: translateY(-2px); box-shadow: 0 5px 0 #ecd3a0; }
+.pg-progress .btn-risk-cfg:active { transform: translateY(2px); box-shadow: 0 1px 0 #e8d9bc; }
+
+/* 遥遥领先：蓝色（比「进度正常」的绿更醒目，表示超前） */
+.pg-progress .stat.s-lead { --sc: #0e9ad6; --sc-soft: rgba(14, 154, 214, .14); }
+.pg-progress .stat .n.lead { color: #0e9ad6; }
+
+/* ---- 进度时间基准设置弹窗 ---- */
+/* ---- 前置依赖：被锁住的节点 ---- */
+/* 必须写在上面的 .tl-node.done 之后 —— 已完成的节点也挂 pg-nodeGlow 呼吸动画，
+   锁定态要用层叠把它盖掉，否则会出现「锁住了还在发光」的矛盾视觉。 */
+.pg-progress .tl-node.locked .tl-dot {
+  opacity: .38; cursor: not-allowed;
+  animation: none;            /* 覆盖 pg-nodeGlow */
+  box-shadow: none;
+}
+.pg-progress .tl-node.locked .tl-lab { opacity: .42; cursor: not-allowed; }
+.pg-progress .tl-node.locked { cursor: not-allowed; }
+.pg-progress .tl-lock {
+  position: absolute; top: -4px; right: calc(50% - 22px); z-index: 3;
+  font-size: 9px; line-height: 1; opacity: .75; pointer-events: none;
+}
+
+/* 弹窗里的节点卡：可点 + 锁定态 */
+.pg-progress .n-card.clickable { cursor: pointer; transition: transform .25s var(--spring), border-color .25s; }
+.pg-progress .n-card.clickable:hover { transform: translateY(-4px) rotate(-.6deg); border-color: var(--sun-2); }
+.pg-progress .n-card.locked { opacity: .5; cursor: not-allowed; }
+.pg-progress .n-card.locked.clickable:hover { transform: none; border-color: #eee0c4; }
+.pg-progress .n-lock { position: absolute; top: 10px; right: 12px; font-size: 11px; opacity: .8; }
+.pg-progress .n-card { position: relative; }
+
+/* 弹窗节点区：按论文分两行 */
+.pg-progress .nodes-group { margin-top: 12px; }
+.pg-progress .nodes-group .ng-cap {
+  display: block; margin-bottom: 8px;
+  font-size: 10.5px; font-weight: 900; letter-spacing: .5px; color: var(--ink-3);
+}
+
+/* 基准设置弹窗：论文分组 */
+.pg-progress .rc-groups { display: flex; flex-direction: column; gap: 18px; }
+.pg-progress .rc-group {
+  padding: 14px 16px 12px; border-radius: 16px;
+  background: #fffdf7; border: 1.5px solid var(--line);
+}
+.pg-progress .rc-group-head {
+  font-size: 13px; font-weight: 900; letter-spacing: 1px; color: var(--amber);
+  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px dashed #eee0c4;
+}
+.pg-progress .rc-group-note { margin-top: 8px; font-size: 10.5px; color: var(--ink-3); line-height: 1.6; }
+
+.pg-progress .rc-overlay {
+  position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 24px;
+  background: rgba(120, 88, 40, .32);
+  backdrop-filter: blur(9px) saturate(1.15); -webkit-backdrop-filter: blur(9px) saturate(1.15);
+}
+.pg-progress .rc-card {
+  position: relative; width: min(560px, 100%); max-height: 88vh; overflow: auto;
+  background: var(--card); border: 1.5px solid #e0d0ac; border-radius: 24px;
+  box-shadow: 0 40px 100px rgba(140, 100, 40, .35); padding: 30px 30px 24px;
+  animation: pg-rise .45s var(--out) both;
+}
+.pg-progress .rc-card .tape { position: absolute; top: -12px; left: 50%; margin-left: -42px; width: 84px; height: 24px;
+  background: linear-gradient(100deg, rgba(251, 191, 36, .5), rgba(251, 146, 60, .42)); }
+.pg-progress .rc-card h3 { font-size: 19px; font-weight: 900; letter-spacing: 1px; }
+.pg-progress .rc-card h3::before { content: "⏱ "; }
+.pg-progress .rc-sub { font-size: 12.5px; color: var(--ink-2); line-height: 1.8; margin: 10px 0 20px; }
+.pg-progress .rc-anchor { display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+  padding: 12px 16px; border-radius: 14px; background: var(--sun-soft); }
+.pg-progress .rc-anchor label { font-size: 12.5px; font-weight: 900; color: var(--amber); }
+.pg-progress .rc-rows { display: flex; flex-direction: column; gap: 8px; }
+.pg-progress .rc-row { display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; border-radius: 12px; background: #fffaf0; border: 1.5px dashed #e3d3b2; }
+.pg-progress .rc-label { flex: none; width: 64px; font-size: 13.5px; font-weight: 900; }
+.pg-progress .rc-row input { width: 76px; font: inherit; font-size: 13px; font-weight: 800; text-align: center;
+  padding: 6px 8px; border-radius: 9px; background: #fff; border: 1.5px solid #e8d9bc; outline: none; }
+.pg-progress .rc-row input:focus { border-color: var(--sun); box-shadow: 0 0 0 4px var(--sun-soft); }
+.pg-progress .rc-unit { font-size: 11.5px; color: var(--ink-3); }
+.pg-progress .rc-preview { margin-left: auto; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pg-progress .rc-actions { display: flex; align-items: center; gap: 12px; margin-top: 22px; }
+.pg-progress .rc-note { flex: 1; font-size: 11px; color: var(--ink-3); line-height: 1.6; }
 .pg-progress .hero .tape { left: 44px; --tr: -5deg; }
 .pg-progress .hero-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 6px; }
 .pg-progress .hero-title { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 900; }
@@ -1398,10 +1485,43 @@ textarea { resize: vertical; line-height: 1.8; }
   mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
   animation: pg-sunSpin 3.2s linear infinite; }
 
-/* 自适应节点时间轴 */
-.pg-progress .tl { position: relative; margin-top: 28px; padding: 2px 2px 0; }
+/* ---- 双轨时间轴（每条论文一行，各 8 个节点） ----
+   8 节点 × 2 条会把卡片撑爆，所以整块丢进横向滚动容器：
+   靠 min-width 让内容溢出滚动，而不是把节点压扁 —— 卡片本身尺寸不变。 */
+.pg-progress .tl-scroll {
+  margin-top: 22px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;              /* Firefox 隐藏原生滚动条 */
+  -ms-overflow-style: none;
+}
+.pg-progress .tl-scroll::-webkit-scrollbar { display: none; height: 0; }
+
+.pg-progress .tl {
+  display: flex; align-items: flex-start; gap: 10px;
+  min-width: 660px;                   /* 8 个节点所需的宽度，放不下就横向滚 */
+  padding: 6px 2px;
+}
+.pg-progress .tl + .tl { margin-top: 12px; }
+.pg-progress .tl-cap {
+  flex: none; width: 44px; padding-top: 3px;
+  font-size: 10.5px; font-weight: 900; letter-spacing: .5px; color: var(--ink-3);
+}
+.pg-progress .tl-track { position: relative; flex: 1; min-width: 0; padding-top: 2px; }
+
 .pg-progress .tl-rail { position: absolute; top: 11px; left: 0; right: 0; height: 3px; border-radius: 2px;
-  background: repeating-linear-gradient(90deg, #e8d9bc 0 7px, transparent 7px 13px); }
+  /* 两层背景：底层是原有虚线底纹，上层是一道高光。
+     高光横向滚动 → 看起来像一束光从左往右扫过，体现「进度在往前推」。 */
+  background-image:
+    repeating-linear-gradient(90deg, #e8d9bc 0 7px, transparent 7px 13px),
+    linear-gradient(90deg, transparent, rgba(245, 158, 11, .9), transparent);
+  background-size: 13px 100%, 34% 100%;
+  background-repeat: repeat-x, no-repeat;
+  animation: pg-beamFlow 3.6s linear infinite;
+}
+@keyframes pg-beamFlow {
+  from { background-position: 0 0, -40% 0; }
+  to   { background-position: 13px 0, 140% 0; }
+}
 .pg-progress .tl-fill { position: absolute; top: 11px; left: 0; height: 3px; width: 0; border-radius: 2px;
   background: linear-gradient(90deg, var(--sun), var(--peach)); box-shadow: 0 1px 6px rgba(245, 158, 11, .5);
   transition: width .9s var(--out); }
@@ -1412,7 +1532,13 @@ textarea { resize: vertical; line-height: 1.8; }
 .pg-progress .tl-lab { font-size: 10.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 100%; padding: 1px 4px; border-radius: 6px; transition: color .3s, background .3s; }
 .pg-progress .tl-node.done .tl-dot { background: linear-gradient(135deg, var(--sun-2), var(--sun));
-  box-shadow: 0 0 0 4px var(--sun-soft), 0 3px 8px rgba(245, 158, 11, .45); }
+  box-shadow: 0 0 0 4px var(--sun-soft), 0 3px 8px rgba(245, 158, 11, .45);
+  animation: pg-nodeGlow 2.4s ease-in-out infinite; }
+/* 已完成节点的星芒呼吸：光晕一圈圈扩出去 */
+@keyframes pg-nodeGlow {
+  0%, 100% { box-shadow: 0 0 0 4px var(--sun-soft), 0 3px 8px rgba(245, 158, 11, .45); }
+  50%      { box-shadow: 0 0 0 7px var(--sun-soft), 0 0 16px 4px rgba(245, 158, 11, .8); }
+}
 .pg-progress .tl-node.done .tl-dot::after { content: ""; position: absolute; left: 5.5px; top: 4.5px; width: 5px; height: 8.5px;
   border-right: 2.2px solid #fff; border-bottom: 2.2px solid #fff; transform: rotate(45deg); border-radius: 1px; }
 .pg-progress .tl-node.done .tl-lab { color: var(--amber); font-weight: 800; }

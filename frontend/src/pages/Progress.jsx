@@ -8,19 +8,29 @@ import Pelican from '../pelican'
 import { useMessages } from '../messages'
 import { usePageBanner } from '../banner'
 
-/* 风险映射：后端返回 正常 / 预警 / 滞后 */
+/* 风险映射：与后端 models.RISK_LEVELS 一一对应，顺序 = 从好到坏 */
 const RISK = {
-  正常: { key: 'ok', label: '正常', cls: '', color: '#7ba05b' },
-  预警: { key: 'warn', label: '预警', cls: 'warn', color: '#d97706' },
-  滞后: { key: 'bad', label: '滞后', cls: 'bad', color: '#f43f5e' },
+  遥遥领先: { key: 'lead', label: '遥遥领先', cls: 'lead', color: '#0e9ad6' },
+  进度正常: { key: 'ok', label: '进度正常', cls: '', color: '#7ba05b' },
+  预警关注: { key: 'warn', label: '预警关注', cls: 'warn', color: '#d97706' },
+  严重滞后: { key: 'bad', label: '严重滞后', cls: 'bad', color: '#f43f5e' },
 }
+const PAPER_TRACKS = [1, 2]
+
+/* 基准设置弹窗里开放的 8 个字段（4 个节点 × 2 篇论文）——
+   与后端 models.DEFAULT_RISK_CONFIG 里非 None 的节点保持一致。
+   其余节点固定「不设期限」，不参与风险判定。 */
+const RISK_CONFIGURABLE = ['出想法', '写论文', '改论文', '已投稿']
+const RISK_FREE = ['学基础', '看论文', '修论文', '中论文']
+
+/* 节点标签的顺序与名称由后端 models.MILESTONE_LABELS 定义，这里只用来做兜底展示 */
 const AVATAR_COLORS = [
   ['#f59e0b', '#fb923c'], ['#7ba05b', '#a3be78'],
   ['#fb923c', '#fbbf24'], ['#f43f5e', '#fb7185'],
 ]
 const CIRC = 207 // 2πr, r=33
 
-const riskOf = (r) => RISK[r] || RISK['正常']
+const riskOf = (r) => RISK[r] || RISK['进度正常']
 
 /* 时间轴填充比例：以最后一个完成节点计算（以 actual 为准，兼容本地未同步的 done 标志） */
 function fillPercent(nodes) {
@@ -30,6 +40,34 @@ function fillPercent(nodes) {
   let lastDone = -1
   nodes.forEach((nd, i) => { if (isDone(nd)) lastDone = i })
   return lastDone < 0 ? 0 : Math.round((lastDone / (n - 1)) * 100)
+}
+
+/* 把 milestones 按论文轨道分组：[[论文1的8个节点], [论文2的8个节点]] */
+const byTrack = (nodes, t) => nodes.filter((n) => (n.track || 1) === t)
+
+/* 每条轨道各自的完成度 */
+const trackPercents = (nodes) => PAPER_TRACKS.map((t) => fillPercent(byTrack(nodes, t)))
+
+/* 环形进度取两条轨道的平均 —— 毕业要求两篇论文，只算一条会失真 */
+const overallPercent = (nodes) => {
+  const pcts = trackPercents(nodes)
+  return pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : 0
+}
+
+/* ---------- 前置依赖：同一条轨道内必须从左到右依次点亮 ---------- */
+
+/* 前一个没完成 → 当前节点锁住（索引 0 没有前置，永远可点） */
+const lockedIn = (trackNodes, i) => i > 0 && !trackNodes[i - 1].done
+
+/* 已完成、但后面还有已完成的节点 → 不允许取消，否则链条中间会断开。
+   判「该节点在它自己轨道内的位置」，与跨轨无关。 */
+const canUncheck = (trackNodes, i) => !trackNodes.slice(i + 1).some((n) => n.done)
+
+/* 给渲染用的定位：某节点在它所属轨道内的下标 + 是否被锁 */
+const trackPosOf = (nodes, node) => {
+  const list = byTrack(nodes, node.track || 1)
+  const i = list.indexOf(node)
+  return { list, i, locked: lockedIn(list, i) }
 }
 
 /* 数字生长动画 */
@@ -75,6 +113,11 @@ export default function Progress() {
   const [urgeTopic, setUrgeTopic] = useState('论文管理')
   const [urgeText, setUrgeText] = useState('')
   const [sending, setSending] = useState(false)
+  // 风险基准设置（仅老师）：离线节点 → 相对入学年的月数偏移
+  const [cfgOpen, setCfgOpen] = useState(false)
+  const [cfgAnchor, setCfgAnchor] = useState(9)
+  const [cfgBaselines, setCfgBaselines] = useState({ paper1: {}, paper2: {} })
+  const [cfgSaving, setCfgSaving] = useState(false)
   const saveTimers = useRef({})
   const { send: sendMessage } = useMessages()
 
@@ -97,12 +140,17 @@ export default function Progress() {
   }, [])
 
   /* ---------- 数据整形 ---------- */
-  const view = useMemo(() => projects.map((p, i) => ({
-    ...p,
-    nodes: (p.milestones || []).map((m) => ({ ...m, done: !!m.actual })),
-    risk: riskOf(p.risk),
-    ac: AVATAR_COLORS[i % AVATAR_COLORS.length],
-  })), [projects])
+  const view = useMemo(() => projects.map((p, i) => {
+    const nodes = (p.milestones || []).map((m) => ({ ...m, done: !!m.actual }))
+    return {
+      ...p,
+      nodes,
+      perTrack: trackPercents(nodes),      // 两条轨道各自的完成度，喂给两行时间轴
+      progress: overallPercent(nodes),     // 圆环显示两条轨道的平均
+      risk: riskOf(p.risk),
+      ac: AVATAR_COLORS[i % AVATAR_COLORS.length],
+    }
+  }), [projects])
 
   const visible = useMemo(
     () => (filter === 'all' ? view : view.filter((s) => String(s.grade_id) === filter)),
@@ -110,7 +158,7 @@ export default function Progress() {
   )
 
   const stats = useMemo(() => {
-    const c = { ok: 0, warn: 0, bad: 0 }
+    const c = { lead: 0, ok: 0, warn: 0, bad: 0 }
     visible.forEach((s) => { c[s.risk.key] += 1 })
     const avg = visible.length ? Math.round(visible.reduce((a, s) => a + s.progress, 0) / visible.length) : 0
     return { total: visible.length, ...c, avg }
@@ -126,14 +174,58 @@ export default function Progress() {
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0], 'zh'))
   }, [visible])
 
+  /* 弹窗要读**活的项目**，而不是打开那一刻的快照。
+     detail.project 是快照，用它的话在弹窗里改动后弹窗自己不会刷新。
+     改成按 id 从 view 里取 → toggleNode/persist 一改 setProjects，两处同时刷新，
+     一份数据源，不需要两边各维护一套状态。 */
+  const cur = useMemo(
+    () => (detail ? view.find((p) => p.id === detail.project.id) || detail.project : null),
+    [view, detail],
+  )
+
   /* ---------- 统计卡 ↔ 柱状图联动 ---------- */
   const toggleRisk = (k) => setRiskFilter((cur) => (cur === k ? null : k))
 
+  /* ---------- 风险基准设置（老师） ---------- */
+  const openRiskConfig = async () => {
+    try {
+      const cfg = await api.get('/thesis/risk-config')
+      setCfgAnchor(cfg.anchor_month)
+      setCfgBaselines({
+        paper1: { ...cfg.baselines.paper1 },
+        paper2: { ...cfg.baselines.paper2 },
+      })
+      setCfgOpen(true)
+    } catch (e) { toast(e.message, 'error') }
+  }
+
+  const saveRiskConfig = async () => {
+    setCfgSaving(true)
+    try {
+      await api.put('/thesis/risk-config', {
+        anchor_month: Number(cfgAnchor),
+        baselines: cfgBaselines,
+      })
+      setCfgOpen(false)
+      toast('基准时间已保存，全班风险已重算 ✓', 'success')
+      load()          // 风险是每次请求实时算的，重取一次就是新结果
+    } catch (e) { toast(e.message, 'error') } finally { setCfgSaving(false) }
+  }
+
+  /* 某条轨道某个节点的月数；空串代表「无期限」 */
+  const setOffset = (trackKey, label, value) => {
+    setCfgBaselines((cur) => ({
+      ...cur,
+      [trackKey]: { ...cur[trackKey], [label]: value === '' ? null : Number(value) },
+    }))
+  }
+
   /* ---------- 时间轴编辑（改动后 PUT 回后端） ---------- */
   const persist = (project, nodes, label) => {
-    const progress = fillPercent(nodes)
-    const milestones = nodes.map(({ key, label: lb, plan, actual }) => ({
-      key, label: lb, plan: plan || null, actual: actual || null,
+    const progress = overallPercent(nodes)
+    // track 必须一起回写，否则后端分组不出来、两行时间轴会同时拿到全部 16 个节点
+    const milestones = nodes.map(({ key, label: lb, track, plan, actual }) => ({
+      key, label: lb, track: track || 1, plan: plan || null, actual: actual || null,
     }))
     setProjects((list) => list.map((p) => (p.id === project.id ? { ...p, milestones, progress } : p)))
     clearTimeout(saveTimers.current[project.id])
@@ -145,9 +237,25 @@ export default function Progress() {
     }, 550)
   }
 
+  /* 点击切换节点完成状态。
+     ⚠️ 前置依赖的两道闸门都放在这里 —— 卡片时间轴和详情弹窗共用同一个入口，
+     所以两处的拦截行为天然一致，不会出现「弹窗里能跳着点」的漏洞。 */
   const toggleNode = (project, index) => {
-    const nodes = project.nodes.map((n, i) => {
-      if (i !== index) return n
+    const target = project.nodes[index]
+    if (!target) return
+    const { list, i } = trackPosOf(project.nodes, target)
+
+    if (lockedIn(list, i)) {
+      // 被锁的节点：直接拦下，**不调 API**
+      return toast(`请先完成「${list[i - 1].label}」`, 'error')
+    }
+    if (target.done && !canUncheck(list, i)) {
+      // 后面还有已完成节点时不允许取消，避免链条中间断开
+      return toast('请先取消这条轨道上后面的节点', 'error')
+    }
+
+    const nodes = project.nodes.map((n, k) => {
+      if (k !== index) return n
       const next = n.actual ? null : new Date().toISOString().slice(0, 10)
       return { ...n, actual: next, done: !!next } // done 与 actual 同步，保证进度计算正确
     })
@@ -164,8 +272,8 @@ export default function Progress() {
     persist(project, project.nodes.filter((_, i) => i !== index), '节点已删除 ✓')
   }
 
-  const addNode = (project) => {
-    persist(project, [...project.nodes, { key: `n${Date.now()}`, label: '新节点', plan: null, actual: null, done: false }], '已新增节点 ✓')
+  const addNode = (project, track = 1) => {
+    persist(project, [...project.nodes, { key: `n${Date.now()}`, label: '新节点', track, plan: null, actual: null, done: false }], '已新增节点 ✓')
   }
 
   /* ---------- 详情弹窗 ---------- */
@@ -264,17 +372,30 @@ export default function Progress() {
               <span className="meta">共 {visible.length} 名学生</span>
             </div>
             {/* 年级筛选：控件长在它所控制的这张卡片里（靠右，与标题同一行） */}
-            <HandDrawnSelect
-              value={filter}
-              options={[
-                { value: 'all', label: '全部年级' },
-                ...grades.map((g) => ({ value: String(g.id), label: g.name })),
-              ]}
-              onChange={(v) => { setFilter(v); setRiskFilter(null) }}
-            />
+            <div className="hero-tools">
+              {isTeacher && (
+                <button className="btn-risk-cfg" type="button" onClick={openRiskConfig}
+                  title="设置各节点相对入学年的基准时间（改完全班风险立刻重算）">
+                  ⏱ 进度时间基准
+                </button>
+              )}
+              <HandDrawnSelect
+                value={filter}
+                options={[
+                  { value: 'all', label: '全部年级' },
+                  ...grades.map((g) => ({ value: String(g.id), label: g.name })),
+                ]}
+                onChange={(v) => { setFilter(v); setRiskFilter(null) }}
+              />
+            </div>
           </div>
           <div className="stats">
             <div className="stat"><div className="n"><CountUp target={stats.total} /></div><div className="l">在册学生</div></div>
+            <div className={`stat clickable s-lead${riskFilter === 'lead' ? ' active' : ''}`}
+              onClick={() => toggleRisk('lead')} title="点击只看「遥遥领先」的学生，再点一次取消">
+              <div className="n lead"><CountUp target={stats.lead} /></div>
+              <div className="l" style={{ color: '#0e9ad6' }}>遥遥领先</div>
+            </div>
             <div className={`stat clickable s-ok${riskFilter === 'ok' ? ' active' : ''}`}
               onClick={() => toggleRisk('ok')} title="点击只看「进度正常」的学生，再点一次取消">
               <div className="n ok"><CountUp target={stats.ok} /></div>
@@ -374,38 +495,57 @@ export default function Progress() {
                       </div>
                     </div>
 
-                    {/* 自适应可编辑时间轴 */}
-                    <div className="tl">
-                      <div className="tl-rail" />
-                      <div className="tl-fill" style={{ width: `${fillPercent(s.nodes)}%` }} />
-                      <div className="tl-nodes">
-                        {s.nodes.map((nd, i) => (
-                          <div className={`tl-node ${nd.done ? 'done' : 'todo'}`} key={nd.key || i}>
-                            {isTeacher && (
-                              <button className="tl-del" title="删除节点"
-                                onClick={(e) => { e.stopPropagation(); deleteNode(s, i) }}>×</button>
-                            )}
-                            <span className="tl-dot" title={isTeacher ? '点击切换完成状态' : undefined}
-                              onClick={(e) => { e.stopPropagation(); if (isTeacher) toggleNode(s, i) }} />
-                            <span className="tl-lab" title={isTeacher ? '双击改名' : undefined}
-                              contentEditable={isTeacher && editingId === s.id}
-                              suppressContentEditableWarning
-                              onClick={(e) => e.stopPropagation()}
-                              onDoubleClick={(e) => { e.stopPropagation(); e.currentTarget.focus() }}
-                              onBlur={(e) => {
-                                const v = e.currentTarget.textContent.trim()
-                                if (v && v !== nd.label) renameNode(s, i, v)
-                              }}
-                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
-                            >{nd.label}</span>
+                    {/* 双轨可编辑时间轴：毕业要求两篇论文，各一条线。
+                        8 节点 × 2 条会把卡片撑爆，所以整块横向滚动，卡片本身尺寸不变。 */}
+                    <div className="tl-scroll">
+                      {PAPER_TRACKS.map((t, ti) => {
+                        const idxInAll = (nd) => s.nodes.indexOf(nd)   // 原数组下标，编辑时要回传
+                        return (
+                          <div className="tl" key={t}>
+                            <span className="tl-cap">论文 {t}</span>
+                            <div className="tl-track">
+                              <div className="tl-rail" />
+                              <div className="tl-fill" style={{ width: `${s.perTrack[ti]}%` }} />
+                              <div className="tl-nodes">
+                                {byTrack(s.nodes, t).map((nd, iInTrack) => {
+                                  const i = idxInAll(nd)
+                                  const dueTip = nd.due ? `基准 ${nd.due}` : '无期限'
+                                  const locked = lockedIn(byTrack(s.nodes, t), iInTrack)
+                                  return (
+                                    <div className={`tl-node ${nd.done ? 'done' : 'todo'}${locked ? ' locked' : ''}`} key={nd.key || i}>
+                                      {isTeacher && (
+                                        <button className="tl-del" title="删除节点"
+                                          onClick={(e) => { e.stopPropagation(); deleteNode(s, i) }}>×</button>
+                                      )}
+                                      {locked && <span className="tl-lock" title={`需先完成「${byTrack(s.nodes, t)[iInTrack - 1].label}」`}>🔒</span>}
+                                      <span className="tl-dot"
+                                        title={locked ? `需先完成「${byTrack(s.nodes, t)[iInTrack - 1].label}」` : `${dueTip}${isTeacher ? ' · 点击切换完成状态' : ''}`}
+                                        onClick={(e) => { e.stopPropagation(); if (isTeacher) toggleNode(s, i) }} />
+                                      <span className="tl-lab" title={isTeacher ? '双击改名（改名后该节点不再绑定风险基准）' : dueTip}
+                                        contentEditable={isTeacher && editingId === s.id}
+                                        suppressContentEditableWarning
+                                        onClick={(e) => e.stopPropagation()}
+                                        onDoubleClick={(e) => { e.stopPropagation(); e.currentTarget.focus() }}
+                                        onBlur={(e) => {
+                                          const v = e.currentTarget.textContent.trim()
+                                          if (v && v !== nd.label) renameNode(s, i, v)
+                                        }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
+                                      >{nd.label}</span>
+                                    </div>
+                                  )
+                                })}
+                                {isTeacher && (
+                                  <div className="tl-add">
+                                    <button title={`给论文 ${t} 添加节点`}
+                                      onClick={(e) => { e.stopPropagation(); addNode(s, t) }}>＋</button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        ))}
-                        {isTeacher && (
-                          <div className="tl-add">
-                            <button title="添加节点" onClick={(e) => { e.stopPropagation(); addNode(s) }}>＋</button>
-                          </div>
-                        )}
-                      </div>
+                        )
+                      })}
                     </div>
                     {isTeacher && editingId === s.id && (
                       <div className="edit-tip">✎ 编辑模式：点击节点文字改名，× 删除，＋ 新增；点击圆点完成状态</div>
@@ -422,9 +562,9 @@ export default function Progress() {
                           onClick={(e) => e.stopPropagation()}
                           onChange={(e) => setRiskOverride(s, e.target.value)}>
                           <option value="">自动 · {s.risk_auto}</option>
-                          <option value="正常">正常</option>
-                          <option value="预警">预警</option>
-                          <option value="滞后">滞后</option>
+                          {Object.keys(RISK).map((lv) => (
+                            <option key={lv} value={lv}>{lv}</option>
+                          ))}
                         </select>
                       ) : (
                         <span className={`badge ${s.risk.cls}`}><i />{s.risk.label}</span>
@@ -450,13 +590,13 @@ export default function Progress() {
           <div className="modal-card paper">
             <span className="tape rose" />
             <div className="m-hero">
-              <div className="avatar" style={{ '--ac1': detail.project.ac[0], '--ac2': detail.project.ac[1] }}>
-                {detail.project.student_name[0]}
+              <div className="avatar" style={{ '--ac1': cur.ac[0], '--ac2': cur.ac[1] }}>
+                {cur.student_name[0]}
               </div>
               <div>
-                <h3>{detail.project.student_name} 的论文档案夹</h3>
+                <h3>{cur.student_name} 的论文档案夹</h3>
                 <div className="sub">
-                  学号 {detail.project.student_no || '—'} · {detail.project.grade_name} · 总体进度 {detail.project.progress}% · {detail.project.risk.label}
+                  学号 {cur.student_no || '—'} · {cur.grade_name} · 总体进度 {cur.progress}% · {cur.risk.label}
                 </div>
               </div>
               <button className="m-close" title="关闭" aria-label="关闭弹窗" onClick={() => setDetail(null)}>
@@ -465,22 +605,43 @@ export default function Progress() {
             </div>
 
             <div className={`m-body${detail.readonly ? ' solo' : ''}`}>
-              {/* 关键节点：置顶、横向排开，节点多了横向滚动 */}
+              {/* 关键节点：置顶，按论文分两行横向排开（与卡片时间轴同一套数据）。
+                  老师可以直接在这里点，改动与外面卡片实时同步。 */}
               <div className="feed feed-nodes">
-                <h4><span className="pip" />关键节点进度</h4>
-                <div className="nodes-row">
-                  {detail.project.milestones.map((m, i) => (
-                    <div className={`n-card${m.actual ? '' : ' back'}`} key={m.key || i}>
-                      <span className="n-dot" />
-                      <div className="n-title">{m.label}</div>
-                      <div className="n-tag">{m.actual ? '已完成' : '未开始'}</div>
-                      <div className="n-time">
-                        <span>计划 {m.plan || '—'}</span>
-                        <span>实际 {m.actual || '—'}</span>
+                <h4>
+                  <span className="pip" />关键节点进度
+                  {isTeacher && <span className="jump-hint">点卡片即可切换完成状态</span>}
+                </h4>
+                {PAPER_TRACKS.map((t) => {
+                  const trackNodes = byTrack(cur.nodes || [], t)
+                  return (
+                    <div className="nodes-group" key={t}>
+                      <span className="ng-cap">论文 {t}</span>
+                      <div className="nodes-row">
+                        {trackNodes.map((m, iInTrack) => {
+                          const i = cur.nodes.indexOf(m)   // 原数组下标，persist 按整个 nodes 重建
+                          const locked = lockedIn(trackNodes, iInTrack)
+                          return (
+                            <div key={m.key || i}
+                              className={`n-card${m.actual ? '' : ' back'}${locked ? ' locked' : ''}${isTeacher ? ' clickable' : ''}`}
+                              title={locked ? `需先完成「${trackNodes[iInTrack - 1].label}」`
+                                : (isTeacher ? '点击切换完成状态' : (m.due ? `基准 ${m.due}` : '无期限'))}
+                              onClick={() => { if (isTeacher) toggleNode(cur, i) }}>
+                              <span className="n-dot" />
+                              {locked && <span className="n-lock">🔒</span>}
+                              <div className="n-title">{m.label}</div>
+                              <div className="n-tag">{m.actual ? '已完成' : '未开始'}</div>
+                              <div className="n-time">
+                                <span>基准 {m.due || '无期限'}</span>
+                                <span>实际 {m.actual || '—'}</span>
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  )
+                })}
                 {detail.readonly && (
                   <div className="readonly-tip">进度看板对所有同学开放，只看不改 —— 想催自己一把的话，早点动手 😉</div>
                 )}
@@ -586,6 +747,72 @@ export default function Progress() {
           </div>
         )}
       </div>
+
+      {/* 进度时间基准设置（仅老师）。改这里 = 改所有年级学生的预期完成时间，
+          保存后 load() 重取一次，全班风险立刻重算。 */}
+      {isTeacher && cfgOpen && (
+        <div className="rc-overlay open"
+          onClick={(e) => { if (e.target === e.currentTarget) setCfgOpen(false) }}>
+          <div className="rc-card">
+            <span className="tape" />
+            <h3>进度时间基准设置</h3>
+            <p className="rc-sub">
+              以「入学年 {cfgAnchor} 月」为起点，各节点往后偏移若干个月。
+              留空表示该节点不设期限、不参与风险判定。
+            </p>
+
+            <div className="rc-anchor">
+              <label>入学基准月份</label>
+              <input type="number" min="1" max="12" value={cfgAnchor}
+                onChange={(e) => setCfgAnchor(e.target.value)} />
+              <span>月</span>
+            </div>
+
+            <div className="rc-groups">
+              {PAPER_TRACKS.map((t) => {
+                const key = `paper${t}`
+                return (
+                  <div className="rc-group" key={key}>
+                    <div className="rc-group-head">论文 {t}</div>
+                    <div className="rc-rows">
+                      {RISK_CONFIGURABLE.map((label) => {
+                        const v = cfgBaselines[key]?.[label]
+                        const months = v === null || v === undefined ? null : Number(v)
+                        const total = months === null ? null : Number(cfgAnchor) - 1 + months
+                        return (
+                          <div className="rc-row" key={label}>
+                            <span className="rc-label">{label}</span>
+                            <input type="number" min="0" max="120" placeholder="无期限"
+                              value={months === null ? '' : months}
+                              onChange={(e) => setOffset(key, label, e.target.value)} />
+                            <span className="rc-unit">个月</span>
+                            <span className="rc-preview">
+                              {total === null
+                                ? '不参与风险判定'
+                                : `26 级 → ${2026 + Math.floor(total / 12)} 年 ${(total % 12) + 1} 月`}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <p className="rc-group-note">
+                      {RISK_FREE.join(' · ')} —— 固定为「不设期限」，不参与风险判定
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="rc-actions">
+              <span className="rc-note">⚠️ 节点改名后会失去基准绑定，变回「无期限」</span>
+              <button className="btn-ghost" type="button" onClick={() => setCfgOpen(false)}>取消</button>
+              <button className="btn-primary" type="button" disabled={cfgSaving} onClick={saveRiskConfig}>
+                {cfgSaving ? '保存中…' : '保存并重算'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -64,6 +64,18 @@
 .fullscreen{position:absolute;z-index:5;top:max(22px,env(safe-area-inset-top));right:max(24px,env(safe-area-inset-right));width:38px;height:38px;padding:10px;border:0;background:none;color:#f1dfbd;opacity:.30;cursor:pointer;transition:opacity .5s;outline:0}.fullscreen:hover,.fullscreen:focus-visible{opacity:.9}.fullscreen svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:.9}.quiet .fullscreen{opacity:.10}.quiet .fullscreen:hover,.quiet .fullscreen:focus-visible{opacity:.9}
 .arrival{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:0;background:#000}.arrived .arrival{animation:arrival 2.4s ease-out}@keyframes arrival{0%{opacity:1}100%{opacity:0}}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+/* v21: 全息投影呼叫 —— 终端回应飞船的召唤（逐条迁自 v21 的 .summon 区块）。
+   这个类由 React 挂在根元素上（见 Login.jsx 的 rootClass），引擎不自己加类。 */
+.summon .hud{opacity:1;filter:drop-shadow(0 0 26px #ffd9a055)}
+.summon .field{border-bottom-color:#ffe2b0aa;animation:field-call 1.7s ease-in-out infinite}
+.summon .field::before{opacity:1;animation:scan 2.8s linear infinite}
+.summon .field::after{transform:scaleX(1)}
+.summon .field-icon{stroke:#ffe9c4;filter:drop-shadow(0 0 5px #ffdf9e)}
+@keyframes field-call{0%,100%{filter:drop-shadow(0 1px 4px #ffdf9e22)}50%{filter:drop-shadow(0 2px 12px #ffdf9e77)}}
+.summon .launch{border-color:#ffedce;box-shadow:0 0 32px #edcd9655,inset 0 0 18px #e0bd8022;animation:launch-call 1.7s ease-in-out infinite}
+@keyframes launch-call{50%{box-shadow:0 0 48px #ffd9a088,inset 0 0 18px #e0bd8033;transform:scale(1.07)}}
+/* 呼叫优先级高于「安静态」：正在被呼叫时 HUD 不许淡出 */
+.quiet.summon .hud{opacity:1}
 @media(max-width:600px){.hud{bottom:max(38px,env(safe-area-inset-bottom));max-width:calc(100% - 42px);width:400px}.controls{grid-template-columns:1fr 1fr 40px;gap:14px}.launch{width:40px;height:40px}.field{height:43px}.field input{font-size:16px;letter-spacing:.03em;padding-left:10px}.field input::placeholder{font-size:11px}.field-icon{width:13px;height:13px}.fullscreen{top:15px;right:15px}}
 @media(max-height:500px){.hud{bottom:17px}.form-status{top:58px;font-size:10px}}
 @media(prefers-reduced-motion:reduce){.universe *,.universe *::before,.universe *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}.quiet .hud{opacity:.68}}

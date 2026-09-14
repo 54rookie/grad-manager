@@ -1,8 +1,16 @@
 /**
- * Gargantua 黑洞着色器（逐字提取自 gargantua.html 的 <script type="x-shader/...">）
+ * Gargantua v21 黑洞着色器（逐字提取自 v21.html 的 <script type="x-shader/...">）
  *
  * 顶点着色器只负责铺满全屏的两个三角形；所有引力透镜、吸积盘、星场都在片元里算。
- * 两段都**不含反引号与 ${}**，因此可以安全地放进模板字面量、无需转义。
+ * 两段都**不含反引号、${} 与反斜杠**（脚本里已断言），因此可以安全地放进模板字面量。
+ *
+ * v21 相对上一版移植的三处改动（都在片元里，逐字保留、未做任何改写）：
+ *  1. 相机从「贴近盘面」抬到 8° 俯视：eye.y = 1.97（tan8° ≈ 1.97/14），
+ *     与 engine 里的 CAM_Y 必须保持一致，否则飞船会飘出黑洞的投影位置；
+ *  2. 吸积盘从「连续发光丝」换成**颗粒碎屑**：新增 voronoi()，
+ *     diskTexture() 用两级 Voronoi（巨石 / 砂砾）叠在低频气体云上，只有云里的颗粒才亮；
+ *  3. 盘面光晕从一条水平线改成**微微压扁的环**（ringD 里 y 除以 .86），
+ *     这是 8° 视角下近侧盘面被压扁的必然结果。
  */
 
 export const VERTEX_SHADER = `attribute vec2 aPosition;void main(){gl_Position=vec4(aPosition,0.,1.);}`
@@ -35,16 +43,44 @@ float valueNoise(vec3 p) {
              mix(mix(hash31(i+vec3(0,0,1)), hash31(i+vec3(1,0,1)), f.x),
                  mix(hash31(i+vec3(0,1,1)), hash31(i+vec3(1,1,1)), f.x),f.y),f.z);
 }
+// Cellular noise: F1/F2 distances plus a per-cell random id. This is the
+// debris field — every cell is one shattered planetesimal / rock grain.
+vec3 voronoi(vec3 p) {
+  vec3 ip = floor(p), fp = fract(p);
+  float f1 = 8.0, f2 = 8.0, id = 0.0;
+  for (int i = -1; i <= 1; i++)
+  for (int j = -1; j <= 1; j++)
+  for (int k = -1; k <= 1; k++) {
+    vec3 g = vec3(float(i), float(j), float(k));
+    vec3 o = vec3(hash31(ip + g),
+                  hash31(ip + g + vec3(13.1, 7.7, 3.9)),
+                  hash31(ip + g + vec3(27.7, 17.3, 9.1)));
+    vec3 r = g + o - fp;
+    float d = dot(r, r);
+    if (d < f1) { f2 = f1; f1 = d; id = hash31(ip + g + vec3(41.0, 57.0, 23.0)); }
+    else if (d < f2) { f2 = d; }
+  }
+  return vec3(sqrt(f1), sqrt(f2), id);
+}
+// v6: the disk is no longer drawn as continuous glowing filaments. It is a
+// swarm of barely-resolvable grains (tidally shredded asteroids) of two size
+// classes, swept around by differential rotation and embedded in low
+// frequency glowing gas / dust clouds. Grains only light up inside clouds.
 float diskTexture(float r, float a) {
-  // Differential rotation stretches irregular clouds into hot spiral filaments.
-  float phase = a - uTime * .58 / pow(max(r, 1.0), 1.28);
-  phase += .11 * sin(r * 1.35 - uTime * .025);
+  float phase = a - uTime * .82 / pow(max(r, 1.0), 1.28);
+  phase += .11 * sin(r * 1.35 - uTime * .034);
   vec3 flow = vec3(r * 4.8, cos(phase) * 7.0, sin(phase) * 7.0);
+  // Low-frequency gas and dust clouds.
   float broad = valueNoise(flow * vec3(.38, .65, .65));
   float curls = valueNoise(flow + broad * 2.6);
-  float fine = valueNoise(flow * vec3(3.1, 1.7, 1.7) + curls * 2.0);
-  float threads = pow(max(.0, 1.0 - abs(fine * 2.0 - 1.0)), 7.0);
-  return (.26 + broad * .66 + curls * .38) * (.55 + .85 * threads);
+  float gas = .16 + broad * .50 + curls * .30;
+  // Two scales of granular debris: boulders and gravel.
+  vec3 rocks = voronoi(flow * vec3(1.55, 2.1, 2.1));
+  vec3 sand  = voronoi(flow * vec3(3.3, 4.4, 4.4) + 17.0);
+  float cloudMask = smoothstep(.30, .72, broad * .62 + curls * .48);
+  float grains = (1.0 - smoothstep(.02, .30, rocks.x)) * (.35 + .65 * rocks.z) * 1.9
+               + (1.0 - smoothstep(.02, .36, sand.x))  * (.30 + .70 * sand.z)  * .9;
+  return gas + grains * cloudMask;
 }
 vec3 thermal(float r) {
   float hot = exp(-max(r - 2.0, 0.0) * .18);
@@ -99,8 +135,11 @@ void main() {
   screen = vec2(cos(roll) * screen.x - sin(roll) * screen.y,
                 sin(roll) * screen.x + cos(roll) * screen.y);
 
-  // Near edge-on camera; all dimensions below are in Schwarzschild radii.
-  vec3 eye = vec3(0.0, .36 + uPointer.y * .035, -14.0);
+  // Camera raised to an 8-degree "god view" above the disk plane:
+  // eye height / distance = tan(8 deg) ~= 1.97 / 14. forward = -eye keeps the
+  // hole centered, so every ray is marched with the tilted frame (right stays
+  // world-x because forward has no x component; up becomes the tilted normal).
+  vec3 eye = vec3(0.0, 1.97 + uPointer.y * .05, -14.0);
   vec3 forward = normalize(-eye);
   vec3 right = vec3(1,0,0);
   vec3 up = normalize(cross(forward, right));
@@ -162,8 +201,12 @@ void main() {
   float outsideShadow = smoothstep(shadowRadius * .97, shadowRadius * 1.02, d);
   float broadHalo = exp(-abs(d - shadowRadius * 1.22) / (.080 * fit));
   float upper = mix(.15, 1.0, smoothstep(-.025 * fit, .15 * fit, screen.y));
-  float diskHalo = exp(-abs(screen.y + .009 * fit) / (.028 * fit));
-  diskHalo *= exp(-abs(screen.x) / (.85 * fit));
+  // 8-degree view: the near-side disk bloom becomes a slightly squashed ring
+  // hugging the shadow instead of a flat horizontal line.
+  float ringD = length(vec2(screen.x, screen.y / .86));
+  float diskHalo = exp(-abs(ringD - shadowRadius * 1.28) / (.026 * fit));
+  diskHalo *= exp(-abs(screen.x) / (1.05 * fit));
+  diskHalo += exp(-abs(screen.y + .009 * fit) / (.020 * fit)) * exp(-abs(screen.x) / (.85 * fit)) * .45;
   vec3 bloom = vec3(1.0, .61, .28) * (.105 * broadHalo * upper + .27 * diskHalo);
   color += bloom * max(outsideShadow, min(direct, 1.0) * .32);
   color *= 1.0 + uEnergy * .12;

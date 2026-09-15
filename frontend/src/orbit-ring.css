@@ -1,0 +1,244 @@
+/* ============================================================
+   星轨 · 电子环绕进度条（OrbitRing）
+   由单文件原型 electron-orbit.html 的「ORBIT 3 · 电子环绕」无损移植：
+   · 选择器全部收进 .orbit-ring 作用域 —— 原型里的 .stage / .num / .center
+     / .tag 是通用名，直接用会和全站既有样式撞车
+   · 原设计固定 200×200，这里尺寸交给 --orb-size，内部按 --orb-scale 等比缩放，
+     所有内部尺寸 / 动画时长 / 关键帧都与原型一一对应，肉眼观感一致
+   · 三种状态沿用原型的 data-state：normal（常规百分比）/ break（修论文）/
+     ult（中论文，满血金冠）
+   ============================================================ */
+
+/* 占位盒：只用来「撑住」布局，尺寸由 --orb-size 决定。
+   环本体（--orb-scale）可以比它大，溢出后压在同卡片的其它内容之上 ——
+   这样卡片尺寸回到原来的样子，不为进度条让位。 */
+.orbit-ring {
+  position: relative;
+  z-index: 3;
+  width: var(--orb-size, 200px);
+  height: var(--orb-size, 200px);
+  flex: none;
+  overflow: visible;
+}
+
+/* 原型把状态光晕加在整张 .pcard 上；这里挂在缩放层上，
+   box-shadow 会跟着 scale 一起缩放，不会出现「环 104px、光晕按 80px 画」的错位。 */
+.orbit-ring__scale {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(var(--orb-scale, 1));
+  transform-origin: 50% 50%;
+  transition: box-shadow .5s ease;
+}
+/* 原型的状态光晕里带一道 `0 0 0 1px` 描边（在原型中是整张卡片的 1px 边框，
+   缩到圆环上就成了一圈多余的静态圆圈线条），这里只保留柔光，去掉描边。 */
+.orbit-ring[data-state="break"] .orbit-ring__scale {
+  box-shadow: 0 18px 44px rgba(249, 115, 22, .28);
+}
+.orbit-ring[data-state="ult"] .orbit-ring__scale {
+  box-shadow: 0 20px 54px rgba(245, 166, 35, .4);
+}
+
+.orbit-ring__stage { position: absolute; inset: 0; display: grid; place-items: center; }
+
+.orbit-ring__center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.orb-num {
+  font-size: 36px;
+  font-weight: 800;
+  color: #6b4a2f;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .7);
+}
+.orb-num small { font-size: 15px; font-weight: 700; color: #9c7b5a; margin-left: 2px; }
+
+.orb-word {
+  display: none;
+  font-weight: 900;
+  letter-spacing: 0;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, .95)) drop-shadow(0 2px 3px rgba(255, 255, 255, .85));
+}
+.orbit-ring[data-state="break"] .orb-word--break {
+  display: block;
+  font-size: 64px;
+  background: linear-gradient(120deg, #ff7a18, #f43f5e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: orb-wordPop .5s cubic-bezier(.2, 1.6, .4, 1) both,
+             orb-wordBreath 1.6s ease-in-out .5s infinite;
+}
+/* 「中」字用绿色系：原来那套金橙渐变在暖奶油纸面上对比度太低，看不清。
+   保留原型的流光扫过效果（orb-shimmerTxt 走 background-position）。 */
+.orbit-ring[data-state="ult"] .orb-word--ult {
+  display: block;
+  font-size: 64px;
+  background: linear-gradient(100deg, #14532d, #16a34a 30%, #86efac 50%, #16a34a 70%, #14532d);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 9px rgba(255, 255, 255, .95)) drop-shadow(0 2px 6px rgba(20, 83, 45, .45));
+  animation: orb-wordPop .55s cubic-bezier(.2, 1.6, .4, 1) both,
+             orb-shimmerTxt 2.2s linear infinite,
+             orb-wordBreath 1.3s ease-in-out .55s infinite;
+}
+
+@keyframes orb-wordPop { 0% { transform: scale(.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes orb-wordBreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@keyframes orb-shimmerTxt { to { background-position: -200% 0; } }
+@keyframes orb-spin { to { transform: rotate(360deg); } }
+@keyframes orb-spinRev { to { transform: rotate(-360deg); } }
+
+/* 破圈光环（修论文） */
+.orb-halo {
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: conic-gradient(from 0deg, transparent 0 40%, rgba(255, 122, 24, .85) 50%, transparent 60% 100%);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%, #000 72%, transparent 74%);
+  mask: radial-gradient(circle, transparent 62%, #000 64%, #000 72%, transparent 74%);
+  filter: blur(1px);
+  transition: opacity .5s ease;
+}
+.orbit-ring[data-state="break"] .orb-halo { opacity: 1; animation: orb-spin 2.4s linear infinite; }
+
+/* 终极光芒 + 皇冠 + 心跳（中论文） */
+.orb-rays {
+  position: absolute;
+  inset: -46px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 199, 80, .9) 0 6deg, transparent 6deg 18deg);
+  -webkit-mask: radial-gradient(circle, transparent 52%, #000 56%, transparent 92%);
+  mask: radial-gradient(circle, transparent 52%, #000 56%, transparent 92%);
+  transition: opacity .6s ease;
+}
+.orbit-ring[data-state="ult"] .orb-rays { opacity: .5; animation: orb-spin 9s linear infinite; }
+
+.orb-crown {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  width: 54px;
+  height: 42px;
+  z-index: 7;
+  transform: translate(-50%, -130%) scale(0);
+  transform-origin: 50% 100%;
+  transition: transform .55s cubic-bezier(.2, 1.8, .35, 1);
+  filter: drop-shadow(0 4px 8px rgba(245, 166, 35, .5));
+}
+.orbit-ring[data-state="ult"] .orb-crown {
+  transform: translate(-50%, -30%) scale(1);
+  animation: orb-crownBob 1.6s ease-in-out .6s infinite;
+}
+@keyframes orb-crownBob {
+  0%, 100% { transform: translate(-50%, -30%) rotate(-4deg) scale(1); }
+  50% { transform: translate(-50%, -40%) rotate(4deg) scale(1.06); }
+}
+
+.orbit-ring[data-state="ult"] .orbit-ring__stage { animation: orb-heartbeat 1.25s ease-in-out infinite; }
+@keyframes orb-heartbeat {
+  0%, 100% { transform: scale(1); }
+  14% { transform: scale(1.05); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.04); }
+  60% { transform: scale(1); }
+}
+
+/* 进度环本体 —— 圆周 2πr，r=44 → 276.46（与原型 stroke-dasharray 一致） */
+.orb-ring-svg { position: relative; z-index: 2; transform: rotate(-90deg); }
+.orb-prog { transition: stroke-dashoffset 1s cubic-bezier(.33, 1, .32, 1), stroke .5s ease; }
+.orbit-ring[data-state="ult"] .orb-prog { animation: orb-goldFlow 2.4s linear infinite; }
+.orbit-ring[data-state="break"] .orb-prog { animation: orb-hotFlow 1.8s ease-in-out infinite; }
+@keyframes orb-goldFlow {
+  0% { filter: hue-rotate(0deg) brightness(1.05) saturate(1.3) drop-shadow(0 0 8px rgba(255, 200, 80, .8)); }
+  50% { filter: hue-rotate(14deg) brightness(1.25) saturate(1.5) drop-shadow(0 0 16px rgba(255, 200, 80, 1)); }
+  100% { filter: hue-rotate(0deg) brightness(1.05) saturate(1.3) drop-shadow(0 0 8px rgba(255, 200, 80, .8)); }
+}
+@keyframes orb-hotFlow {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 6px rgba(255, 110, 40, .7)); }
+  50% { filter: brightness(1.3) drop-shadow(0 0 14px rgba(255, 90, 40, .95)); }
+}
+
+/* 原子核 + 三条倾斜电子轨道 */
+.orb-nucleus {
+  position: absolute;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  z-index: 1;
+  background: radial-gradient(circle at 38% 32%, #fff6e6, #ffe3b0 60%, #ffcf7a);
+  box-shadow: inset -6px -8px 16px rgba(230, 140, 40, .3), 0 6px 16px rgba(230, 140, 40, .35), 0 0 22px rgba(255, 176, 32, .4);
+  animation: orb-nucleusPulse 2.6s ease-in-out infinite;
+}
+@keyframes orb-nucleusPulse {
+  0%, 100% { box-shadow: inset -6px -8px 16px rgba(230, 140, 40, .3), 0 6px 16px rgba(230, 140, 40, .35), 0 0 22px rgba(255, 176, 32, .4); }
+  50% { box-shadow: inset -6px -8px 16px rgba(230, 140, 40, .3), 0 6px 16px rgba(230, 140, 40, .35), 0 0 36px rgba(255, 176, 32, .7); }
+}
+
+.orb-orbit3d { position: absolute; inset: 14px; }
+/* 六芒星轨道（三条倾斜椭圆）：亮度跟着进度走，
+   透明度由 JS 通过 --orb-line-a 注入（0.26 → 0.58） */
+.orb-line {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(190, 140, 70, var(--orb-line-a, .3));
+}
+.orb-spinner { position: absolute; inset: 0; }
+.orb-electron {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #ffb020 55%, #f97316);
+  box-shadow: 0 0 9px 2px rgba(255, 176, 32, .85);
+}
+.orb-orbit3d.oa { transform: rotate(-22deg) scaleY(.42); }
+.orb-orbit3d.oa .orb-spinner { animation: orb-spin 3.2s linear infinite; }
+.orb-orbit3d.oa .orb-electron { transform: translateX(-50%) scaleY(2.38); }
+.orb-orbit3d.ob { transform: rotate(38deg) scaleY(.42); }
+.orb-orbit3d.ob .orb-spinner { animation: orb-spinRev 4.4s linear infinite; }
+.orb-orbit3d.ob .orb-electron {
+  transform: translateX(-50%) scaleY(2.38);
+  background: radial-gradient(circle at 35% 30%, #fff, #ff8f3c 55%, #f43f5e);
+}
+.orb-orbit3d.oc { transform: rotate(90deg) scaleY(.42); }
+.orb-orbit3d.oc .orb-spinner { animation: orb-spin 5.6s linear infinite; }
+.orb-orbit3d.oc .orb-electron {
+  transform: translateX(-50%) scaleY(2.38);
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #ffd166 55%, #f5a623);
+}
+.orbit-ring[data-state="break"] .oa .orb-spinner { animation-duration: 1.1s; }
+.orbit-ring[data-state="break"] .ob .orb-spinner { animation-duration: 1.5s; }
+.orbit-ring[data-state="break"] .oc .orb-spinner { animation-duration: 1.9s; }
+.orbit-ring[data-state="ult"] .oa .orb-spinner { animation-duration: 1.8s; }
+.orbit-ring[data-state="ult"] .ob .orb-spinner { animation-duration: 2.3s; }
+.orbit-ring[data-state="ult"] .oc .orb-spinner { animation-duration: 2.9s; }
+.orbit-ring[data-state="ult"] .orb-line { border-color: rgba(245, 166, 35, var(--orb-line-a, .58)); }
+
+/* 尊重系统「减弱动态效果」设置：动画全部停掉，只保留静态环形 */
+@media (prefers-reduced-motion: reduce) {
+  .orbit-ring * { animation: none !important; }
+}

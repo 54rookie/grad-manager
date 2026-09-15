@@ -18,9 +18,11 @@ const AVATAR_COLORS = [
   ['#fb923c', '#fbbf24'], ['#f43f5e', '#fb7185'],
 ]
 
-/* 后端状态 → 视觉状态 */
+/* 后端状态 → 视觉状态
+   stamp 一定要显式给出：印章的颜色完全由状态决定（已交=绿 / 逾期=红 / 未交=灰），
+   原先「已交」的 stamp 是空字符串，落回基础样式，三种状态看起来几乎一样。 */
 const STATUS = {
-  已交: { cls: 'ok', stamp: '', dot: '#7ba05b', filled: true },
+  已交: { cls: 'ok', stamp: 'ok', dot: '#7ba05b', filled: true },
   未交: { cls: 'no', stamp: 'no', dot: '#c9b992', filled: false },
   逾期: { cls: 'late', stamp: 'late', dot: '#f43f5e', filled: true },
 }
@@ -51,6 +53,27 @@ function weekRange(week) {
 }
 
 const weekNo = (week) => (week || '').split('-W')[1] || '—'
+
+/* 周次显示：meta 里带「第 N 周」（老师可自定义基准周，见后端 semester_config）。
+   基准周之前的周次算出来是 0 或负数，不显示「第 N 周」，退回 ISO 周并标注「开学前」。 */
+function weekLabel(week, meta) {
+  const i = meta?.week_index?.[week]
+  if (!i || i < 1) return `${week}（开学前）`
+  return `第 ${i} 周 · ${week}`
+}
+
+/* 日历大字：优先显示学期内的「第 N 周」，没有就退回 ISO 周号 */
+function weekNoOf(week, meta) {
+  const i = meta?.week_index?.[week]
+  return i && i > 0 ? i : weekNo(week)
+}
+
+const ymd = (d) => (d
+  ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  : '')
+
+/* ISO 周 → 该周周日（YYYY-MM-DD）。基准周对外一律用日期表达，老师只选周日。 */
+const weekSunday = (week) => ymd(weekBounds(week)?.sunday)
 
 /* 极简 Markdown → JSX（标题 / 列表 / 加粗） */
 function Md({ src, empty = '该同学本周暂未提交周报。' }) {
@@ -92,8 +115,15 @@ export default function Reports() {
   const { user } = useAuth()
   const isTeacher = user.role === 'teacher'
 
-  const [weeks, setWeeks] = useState({ current: '', weeks: [] })
+  const [weeks, setWeeks] = useState({ current: '', weeks: [], week_index: {}, semesters: [] })
   const [week, setWeek] = useState('')
+  /* 学期筛选（与周次构成双重条件）；空串 = 还没拿到后端给的默认学期 */
+  const [semester, setSemester] = useState('')
+  const [reloading, setReloading] = useState(false)
+  /* 学期基准周设置（仅老师）—— 用「周日日期」表达 */
+  const [semCfgOpen, setSemCfgOpen] = useState(false)
+  const [semStartDate, setSemStartDate] = useState('')
+  const [savingSem, setSavingSem] = useState(false)
   const [board, setBoard] = useState(null)
   const [mine, setMine] = useState(null)
   const [myList, setMyList] = useState([])   // 学生本人的全部周报（供「最近十周打卡」用）
@@ -106,11 +136,15 @@ export default function Reports() {
   const timers = useRef({})
   const toast = useToast()
 
-  const loadWeeks = useCallback(async () => {
+  /* 周次元数据：带上学期就只取该学期的周次（学期 → 周 的双重筛选由后端算好）。
+     week 的落点：还在新列表里就留着，否则落到该学期的默认周（本周 / 学期内最后一周）。 */
+  const loadWeeks = useCallback(async (sem) => {
     try {
-      const w = await api.get('/reports/weeks')
+      const q = sem ? `?semester=${encodeURIComponent(sem)}` : ''
+      const w = await api.get(`/reports/weeks${q}`)
       setWeeks(w)
-      setWeek((cur) => cur || w.current)
+      setSemester((cur) => cur || w.semester)
+      setWeek((cur) => (cur && w.weeks.includes(cur) ? cur : w.default_week))
     } catch (e) { toast(e.message, 'error') }
   }, [toast])
 
@@ -138,9 +172,9 @@ export default function Reports() {
     return () => { alive = false }
   }, [week, isTeacher, toast])
 
-  /* ESC 关闭弹窗 */
+  /* ESC 关闭弹窗（手账本 + 学期基准周设置） */
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') closeBook() }
+    const onKey = (e) => { if (e.key === 'Escape') { closeBook(); setSemCfgOpen(false) } }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
@@ -195,10 +229,16 @@ export default function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, week, items, myList, isTeacher, user])
 
-  /* 学生端进度条：统计「从第一周到本周」已交周数占窗口总周数的比例
-     （老师端仍是当周收取率 pct，见上） */
-  const myTotal = weeks.weeks?.length || 0
-  const myDone = (weeks.weeks || []).filter((w) => myList.some((r) => r.week === w)).length
+  /* 学生端进度条：统计「本学期已经开过头」的周里已交的比例。
+     周次列表是升序的（第 1 周在最前），基准周之前 / 本周之后的周不算进去。 */
+  const startedWeeks = useMemo(() => {
+    const idx = weeks.week_index || {}
+    const curIdx = idx[weeks.current]
+    return (weeks.weeks || []).filter((w) => curIdx == null || idx[w] == null || idx[w] <= curIdx)
+  }, [weeks])
+
+  const myTotal = startedWeeks.length
+  const myDone = startedWeeks.filter((w) => myList.some((r) => r.week === w)).length
   const myPct = myTotal ? Math.round((myDone / myTotal) * 100) : 0
 
   /* 只有本周的周报能改，历史周一律只读 */
@@ -217,8 +257,8 @@ export default function Reports() {
     })
   }
 
-  /* 最近十周打卡：weeks.weeks 由近及远（后端 recent_weeks(12)），取前十周。
-     状态判定与后端保持一致（backend/app/routers/reports.py:99）：
+  /* 最近十周打卡：从本学期已开始的周里取最后十周，反转成「最近的在最前」。
+     状态判定与后端保持一致（backend/app/routers/reports.py:board）：
      有该周周报 → 已交；否则「今天」已过该周周日 → 逾期；再否则 → 未交。
      后端比的是日期不是时刻，这里也把两边都归零到当天再比。 */
   const stampWeeks = useMemo(() => {
@@ -226,7 +266,7 @@ export default function Reports() {
     const done = new Set(myList.map((r) => r.week))
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    return (weeks.weeks || []).slice(0, 10).map((w) => {
+    return startedWeeks.slice(-10).reverse().map((w) => {
       if (done.has(w)) return { week: w, status: '已交' }
       const b = weekBounds(w)
       if (!b) return { week: w, status: '未交' }
@@ -234,7 +274,7 @@ export default function Reports() {
       end.setHours(0, 0, 0, 0)
       return { week: w, status: today > end ? '逾期' : '未交' }
     })
-  }, [weeks, myList, isTeacher])
+  }, [startedWeeks, myList, isTeacher])
 
   /* 学生端下方网格：最近十周各一张卡片（老师端仍用当周全班名单） */
   const weekCards = useMemo(() => {
@@ -304,6 +344,58 @@ export default function Reports() {
     setEditing(false)
   }
 
+  /* 切学期 = 重新取该学期的周次；week 由 loadWeeks 落到该学期的默认周 */
+  const changeSemester = (key) => {
+    setSemester(key)
+    setOpen(null)
+    setEditing(false)
+    loadWeeks(key)
+  }
+
+  /* 刷新按钮：重新拉一遍「周次元数据 + 当前周数据」。
+     原来直接调 changeWeek(week) 是空转 —— week 没变，依赖 week 的 effect 不会重跑，
+     所以点了没反应。这里显式重取，并把结果交给全局 toast 组件反馈。 */
+  const refreshAll = async () => {
+    if (reloading) return
+    setReloading(true)
+    try {
+      const q = semester ? `?semester=${encodeURIComponent(semester)}` : ''
+      const w = await api.get(`/reports/weeks${q}`)
+      setWeeks(w)
+      const target = w.weeks.includes(week) ? week : w.default_week
+      setWeek(target)
+      if (isTeacher) {
+        setBoard(await api.get(`/reports/board?week=${target}`))
+      } else {
+        const list = await api.get('/reports/my')
+        setMyList(list)
+        setMine(list.find((r) => r.week === target) || null)
+      }
+      toast(`${weekLabel(target, w)} 周报数据已刷新 ✓`, 'success')
+    } catch (e) {
+      toast(e.message, 'error')
+    } finally {
+      setReloading(false)
+    }
+  }
+
+  /* 学期基准周设置（仅老师） */
+  const openSemCfg = () => {
+    setSemStartDate(weeks.start_date || weekSunday(weeks.start_week) || '')
+    setSemCfgOpen(true)
+  }
+
+  const saveSemesterConfig = async () => {
+    if (!semStartDate) return toast('请选择作为第 1 周的周日日期', 'error')
+    setSavingSem(true)
+    try {
+      await api.put('/reports/semester-config', { semester, start_date: semStartDate })
+      setSemCfgOpen(false)
+      toast('学期基准周已保存，周次已重新推算 ✓', 'success')
+      await loadWeeks(semester)   // 第 N 周要按新基准重算
+    } catch (e) { toast(e.message, 'error') } finally { setSavingSem(false) }
+  }
+
   /* 关闭手账本（同时退出编辑态） */
   const closeBook = () => {
     setOpen(null)
@@ -320,14 +412,23 @@ export default function Reports() {
           <div className="calendar">
             <div className="cal-top"><span>WEEKLY</span></div>
             <div className="cal-body">
-              <div className="cal-week">{weekNo(week)}<small>周</small></div>
+              <div className="cal-week">{weekNoOf(week, weeks)}<small>周</small></div>
               <div className="cal-range">{weekRange(week)}</div>
               <div className="cal-sel">
                 <select aria-label="选择周次" value={week} onChange={(e) => changeWeek(e.target.value)}>
                   {weeks.weeks.map((w) => (
                     <option key={w} value={w}>
-                      {w}{w === weeks.current ? ' · 本周' : ''}
+                      {weekLabel(w, weeks)}{w === weeks.current ? ' · 本周' : ''}
                     </option>
+                  ))}
+                </select>
+              </div>
+              {/* 双重条件筛选：学期（+年份）收窄上面的周次范围 */}
+              <div className="cal-term-label">学期筛选</div>
+              <div className="cal-sel cal-term">
+                <select aria-label="选择学期" value={semester} onChange={(e) => changeSemester(e.target.value)}>
+                  {(weeks.semesters || []).map((s) => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
                   ))}
                 </select>
               </div>
@@ -342,9 +443,18 @@ export default function Reports() {
               </div>
               <span className="board-meta">
                 {isTeacher
-                  ? `${week} · 已收 ${submitted} / ${items.length} 份`
-                  : `${week} · ${mine ? '已提交' : '尚未提交'}`}
-                <button className="board-refresh" onClick={() => changeWeek(week)}>↻ 刷新</button>
+                  ? `${weekLabel(week, weeks)} · 已收 ${submitted} / ${items.length} 份`
+                  : `${weekLabel(week, weeks)} · ${mine ? '已提交' : '尚未提交'}`}
+                {isTeacher && (
+                  <button className="board-refresh board-cfg" type="button" onClick={openSemCfg}
+                    title="设置哪一周算「第 1 周」（学期基准周）">
+                    ⚙ 学期起始周
+                  </button>
+                )}
+                <button className={`board-refresh${reloading ? ' busy' : ''}`} type="button"
+                  onClick={refreshAll} disabled={reloading} title="重新拉取当前周报数据">
+                  <span className="ico">↻</span> {reloading ? '刷新中…' : '刷新'}
+                </button>
               </span>
             </div>
             <div className="track">
@@ -394,11 +504,14 @@ export default function Reports() {
               })}
             </div>
             )}
-            <div className="legend">
-              <span><i className="l1" />已交</span>
-              <span><i className="l2" />未交</span>
-              <span><i className="l3" />逾期</span>
-            </div>
+            {/* 状态图例只是老师看全班圆点时的辅助说明，学生端不需要 —— 直接不渲染 */}
+            {isTeacher && (
+              <div className="legend">
+                <span><i className="l1" />已交</span>
+                <span><i className="l2" />未交</span>
+                <span><i className="l3" />逾期</span>
+              </div>
+            )}
           </div>
         </section>
 
@@ -606,6 +719,42 @@ export default function Reports() {
           </div>
         )}
       </div>
+
+      {/* 学期基准周设置（仅老师）：决定「第 1 周」落在哪个 ISO 周，
+          保存后后端按新基准重算第 N 周，页面立即重取一次。
+          复用全站既有的 .overlay + .pwd-card 弹窗骨架。 */}
+      {isTeacher && semCfgOpen && (
+        <div className="overlay open"
+          onClick={(e) => { if (e.target === e.currentTarget) setSemCfgOpen(false) }}>
+          <div className="pwd-card">
+            <span className="tape" />
+            <h3>学期基准周</h3>
+            <p className="pwd-sub">
+              {weeks.semester_label || '当前学期'} · 选定哪一周算「第 1 周」，
+              选项按周日排（该周日所在的那一周即为第 1 周），系统据此推算后续所有周次。
+            </p>
+            <div className="field">
+              <label>第 1 周的周日</label>
+              <select value={semStartDate} onChange={(e) => setSemStartDate(e.target.value)}>
+                {weeks.weeks.map((w) => {
+                  const d = weekSunday(w)
+                  return d ? <option key={w} value={d}>{d}</option> : null
+                })}
+              </select>
+            </div>
+            <p className="sem-hint">
+              当前生效：{weeks.start_date || weekSunday(weeks.start_week)}
+              （{weeks.start_week_custom ? '老师自定义' : '按学期默认'}）
+            </p>
+            <div className="pwd-actions">
+              <button className="btn-ghost" type="button" onClick={() => setSemCfgOpen(false)}>取消</button>
+              <button className="btn-pin" type="button" disabled={savingSem} onClick={saveSemesterConfig}>
+                {savingSem ? '保存中…' : '保存并重算'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

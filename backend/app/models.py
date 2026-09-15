@@ -72,6 +72,11 @@ RISK_LEVELS = ["遥遥领先", "进度正常", "预警关注", "严重滞后"]
 
 RISK_CONFIG_KEY = "risk_config"
 
+# 学期基准周配置：老师端自定义「哪一周算第一周」。
+# 存 {"start_weeks": {"2026-autumn": "2026-W37"}} —— 按学期分别记，
+# 换学期不会把上一个学期设过的基准覆盖掉。
+SEMESTER_CONFIG_KEY = "semester_config"
+
 
 def upgrade_legacy_milestones(legacy: list) -> list | None:
     """旧版「6 节点·单论文」→ 新版「8 节点 × 2 轨道」。

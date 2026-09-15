@@ -1485,6 +1485,10 @@ textarea { resize: vertical; line-height: 1.8; }
   mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
   animation: pg-sunSpin 3.2s linear infinite; }
 
+/* 环形进度条（星轨 · 电子环绕）：本体样式全部在 src/orbit-ring.css，
+   这里只补一条卡片内的摆放规则 —— 靠右、与头像分列两端 */
+.pg-progress .card-top .orbit-ring { margin-left: auto; }
+
 /* ---- 双轨时间轴（每条论文一行，各 8 个节点） ----
    8 节点 × 2 条会把卡片撑爆，所以整块丢进横向滚动容器：
    靠 min-width 让内容溢出滚动，而不是把节点压扁 —— 卡片本身尺寸不变。 */
@@ -2109,6 +2113,14 @@ textarea { resize: vertical; line-height: 1.8; }
   transform: translateY(-70%) rotate(45deg); transition: transform .35s var(--spring); }
 .pg-report .cal-sel:focus-within::after { transform: translateY(-30%) rotate(225deg); }
 
+/* 学期筛选（压在周次选择下方）：与周次选择同一套手账风控件，只是小一号 */
+.pg-report .cal-term-label {
+  margin-top: 12px; text-align: left; font-size: 10.5px; font-weight: 900;
+  letter-spacing: 2px; color: var(--ink-3);
+}
+.pg-report .cal-term { margin-top: 6px; }
+.pg-report .cal-term select { font-size: 11.5px; padding: 7px 28px 7px 12px; }
+
 .pg-report .board { flex: 1; min-width: 340px; background: var(--card); border: 1.5px solid var(--line); border-radius: 20px;
   box-shadow: var(--shadow); padding: 24px 28px; position: relative; }
 .pg-report .board .tape { position: absolute; top: -12px; left: 40px; width: 88px; height: 25px; z-index: 3; pointer-events: none;
@@ -2124,6 +2136,15 @@ textarea { resize: vertical; line-height: 1.8; }
   background: #fff; border: 1.5px solid #e8d9bc; border-radius: 9px; padding: 5px 12px; box-shadow: 0 2px 0 #eee0c4;
   transition: transform .25s var(--spring), border-color .25s, color .25s; }
 .pg-report .board-refresh:hover { border-color: var(--sun); color: var(--amber); transform: translateY(-1px); }
+.pg-report .board-refresh:disabled { cursor: progress; }
+/* 刷新中：图标原地转起来，按钮本身压暗并屏蔽重复点击 */
+.pg-report .board-refresh .ico { display: inline-block; }
+.pg-report .board-refresh.busy { opacity: .72; }
+.pg-report .board-refresh.busy .ico { animation: pg-report-spin .8s linear infinite; }
+@keyframes pg-report-spin { to { transform: rotate(360deg); } }
+/* 老师专属：学期起始周设置入口 */
+.pg-report .board-refresh.board-cfg { border-style: dashed; }
+.pg-report .board-refresh.board-cfg:hover { border-color: var(--rose); color: var(--rose); }
 
 .pg-report .track { position: relative; height: 14px; border-radius: 8px; background: #f3e9d2; border: 1.5px dashed #e0cfa6; overflow: hidden; margin-bottom: 8px; }
 .pg-report .track-fill { height: 100%; width: 0; border-radius: 8px; position: relative;
@@ -2274,9 +2295,24 @@ textarea { resize: vertical; line-height: 1.8; }
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.92 0.08'/%3E%3C/filter%3E%3Crect width='120' height='60' filter='url(%23g)'/%3E%3C/svg%3E");
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.92 0.08'/%3E%3C/filter%3E%3Crect width='120' height='60' filter='url(%23g)'/%3E%3C/svg%3E");
   animation: pg-stampIn .55s var(--out) both; animation-delay: calc(var(--d, 0s) + .45s); }
-.pg-report .stamp.no { --sc: #a89a7e; --sr: 9deg; border-style: dashed; }
-.pg-report .stamp.late { --sc: var(--rose); --sr: -18deg; }
+.pg-report .stamp.no { --sc: #a89a7e; --sr: 9deg; border-style: dashed;
+  color: #8d8265; background: rgba(168, 154, 126, .12); }
+.pg-report .stamp.late { --sc: #dc2626; --sr: -18deg;
+  background: rgba(220, 38, 38, .13); box-shadow: 0 0 0 3px rgba(220, 38, 38, .1); }
+/* 已交：绿色系，边框 / 文字 / 淡绿底 —— 与「未交」的灰、「逾期」的红明确区分 */
+.pg-report .stamp.ok { --sc: #4f8a3d; --sr: -12deg;
+  background: rgba(123, 160, 91, .16); border-style: double; }
 .pg-report .stamp::after { content: ""; position: absolute; inset: 2px; border: 1px solid var(--sc); border-radius: 5px; opacity: .4; }
+
+/* 「学期基准周」设置弹窗复用全站 .overlay + .pwd-card 骨架，
+   骨架里只给 input 定了样式，这里把 select 补齐 + 一行说明文字 */
+.pg-report .pwd-card .field select {
+  width: 100%; padding: 10px 12px; border-radius: 10px; font: inherit; font-size: 14px;
+  color: var(--ink); background: #fffaf0; border: 1.5px solid #e8d9bc; outline: none;
+  transition: border-color .25s, box-shadow .25s;
+}
+.pg-report .pwd-card .field select:focus { border-color: var(--sun); box-shadow: 0 0 0 4px var(--sun-soft); }
+.pg-report .sem-hint { font-size: 11.5px; color: var(--ink-3); }
 
 .pg-report .actions { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; justify-content: center;
   padding: 12px; transform: translateY(105%); opacity: 0; transition: transform .4s var(--spring), opacity .3s;

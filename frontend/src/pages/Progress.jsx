@@ -4,6 +4,7 @@ import { api } from '../api'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
 import HandDrawnSelect from '../HandDrawnSelect'
+import OrbitRing from '../OrbitRing'
 import Pelican from '../pelican'
 import { useMessages } from '../messages'
 import { usePageBanner } from '../banner'
@@ -28,7 +29,6 @@ const AVATAR_COLORS = [
   ['#f59e0b', '#fb923c'], ['#7ba05b', '#a3be78'],
   ['#fb923c', '#fbbf24'], ['#f43f5e', '#fb7185'],
 ]
-const CIRC = 207 // 2πr, r=33
 
 const riskOf = (r) => RISK[r] || RISK['进度正常']
 
@@ -52,6 +52,37 @@ const trackPercents = (nodes) => PAPER_TRACKS.map((t) => fillPercent(byTrack(nod
 const overallPercent = (nodes) => {
   const pcts = trackPercents(nodes)
   return pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : 0
+}
+
+/* ---------- 环形进度条（右上角）专用口径 ----------
+
+   8 个节点 × 2 条论文轨道 = 16 个节点，其中「修论文」「中论文」是**进阶节点**：
+   它们各自对应环形进度条上的超额特效（修 = 破圈光环 / 中 = 金色皇冠），
+   不该再占用基础进度的分母。两条轨道各有一个，共 4 个，所以：
+
+       基础节点数 = 节点总数 - 4        （当前 16 - 4 = 12）
+       进度百分比 = 已点亮基础节点数 / 基础节点数 × 100%
+
+   基础节点全部点亮即 100%；之后点亮的「修 / 中」不再加百分比，而是切到特效状态。 */
+const ADVANCED_LABELS = ['修论文', '中论文']
+
+const isNodeDone = (n) => (n.actual !== undefined ? !!n.actual : !!n.done)
+
+const baseNodesOf = (nodes) => nodes.filter((n) => !ADVANCED_LABELS.includes(n.label))
+
+const basePercent = (nodes) => {
+  const base = baseNodesOf(nodes)
+  if (!base.length) return 0
+  const done = base.filter(isNodeDone).length
+  return Math.max(0, Math.min(100, Math.round((done / base.length) * 100)))
+}
+
+/* 进阶状态：中论文（金冠）优先于修论文（光环），都未点亮则是常规百分比 */
+const advancedState = (nodes) => {
+  const hit = (label) => nodes.some((n) => n.label === label && isNodeDone(n))
+  if (hit('中论文')) return 'ult'
+  if (hit('修论文')) return 'break'
+  return 'normal'
 }
 
 /* ---------- 前置依赖：同一条轨道内必须从左到右依次点亮 ---------- */
@@ -146,7 +177,9 @@ export default function Progress() {
       ...p,
       nodes,
       perTrack: trackPercents(nodes),      // 两条轨道各自的完成度，喂给两行时间轴
-      progress: overallPercent(nodes),     // 圆环显示两条轨道的平均
+      progress: overallPercent(nodes),     // 双轨均值：柱状图 / 平均完成度 / 弹窗头部
+      orbitPct: basePercent(nodes),        // 右上角环形进度条：基础节点完成度
+      orbitState: advancedState(nodes),    // normal / break(修论文) / ult(中论文)
       risk: riskOf(p.risk),
       ac: AVATAR_COLORS[i % AVATAR_COLORS.length],
     }
@@ -484,15 +517,21 @@ export default function Progress() {
                         <div className="name">{s.student_name}</div>
                         <div className="sid">学号 {s.student_no || '—'}</div>
                       </div>
-                      <div className="ring">
-                        <span className="orbit" />
-                        <svg viewBox="0 0 80 80">
-                          <circle className="bg" cx="40" cy="40" r="33" />
-                          <circle className="fg" cx="40" cy="40" r="33"
-                            style={{ strokeDashoffset: mounted ? CIRC * (1 - s.progress / 100) : CIRC }} />
-                        </svg>
-                        <div className="num"><span>{s.progress}</span><small>%</small></div>
-                      </div>
+                      {/* 右上角环形进度条：基础节点完成度（节点总数 - 4）
+                          + 修论文 / 中论文 的超额特效，见 ../OrbitRing.jsx
+                          size=视觉直径 / box=占位直径：占位回到改前的 80px，
+                          卡片高度不变，多出来的部分由环自己溢出压上去。 */}
+                      <OrbitRing
+                        percent={s.orbitPct}
+                        state={s.orbitState}
+                        size={104}
+                        box={80}
+                        title={s.orbitState === 'ult'
+                          ? `基础节点 ${s.orbitPct}% · 已中论文 🎉`
+                          : s.orbitState === 'break'
+                            ? `基础节点 ${s.orbitPct}% · 修论文进行中`
+                            : `基础节点完成度 ${s.orbitPct}%`}
+                      />
                     </div>
 
                     {/* 双轨可编辑时间轴：毕业要求两篇论文，各一条线。

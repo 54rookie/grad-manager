@@ -2,15 +2,20 @@ import json
 import re
 from datetime import datetime, date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, Form, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from ..auth import get_current_user, require_teacher
 from ..database import get_session
-from ..models import User, Grade, WeeklyReport, ReportComment, Setting, SEMESTER_CONFIG_KEY
+from ..models import User, Grade, WeeklyReport, ReportComment, ReportAttachment, Setting, SEMESTER_CONFIG_KEY
+from ..uploads import MAX_FILES, save_upload, delete_upload, upload_path
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
+
+DEFAULT_REPORT_TEMPLATE = "## 本周进展\n- …\n\n## 遇到问题\n- …\n\n## 下周计划\n- …"
+REPORT_TEMPLATE_KEY = "report_template"
 
 
 def current_week() -> str:
@@ -150,12 +155,14 @@ def report_view(r: WeeklyReport, session: Session) -> dict:
     comments = session.exec(
         select(ReportComment).where(ReportComment.report_id == r.id).order_by(ReportComment.created_at)
     ).all()
+    attachments = session.exec(select(ReportAttachment).where(ReportAttachment.report_id == r.id)).all()
     return {
         "id": r.id, "student_id": r.student_id,
         "student_name": stu.name if stu else "?",
         "student_no": stu.student_no if stu else "",
         "grade_id": stu.grade_id if stu else None,
         "week": r.week, "content_md": r.content_md,
+        "attachments": [{"id": a.id, "name": a.original_name, "is_image": bool(a.image_mime)} for a in attachments],
         "created_at": r.created_at, "updated_at": r.updated_at,
         "comments": [
             {
@@ -212,6 +219,28 @@ def list_weeks(semester: str | None = None, session: Session = Depends(get_sessi
 
 class ReportIn(BaseModel):
     content_md: str
+
+
+class ReportTemplateIn(BaseModel):
+    template: str
+
+
+@router.get("/template")
+def get_report_template(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    row = session.get(Setting, REPORT_TEMPLATE_KEY)
+    return {"template": row.value if row else DEFAULT_REPORT_TEMPLATE}
+
+
+@router.put("/template")
+def put_report_template(data: ReportTemplateIn, session: Session = Depends(get_session),
+                        teacher: User = Depends(require_teacher)):
+    if not data.template.strip() or len(data.template) > 4000:
+        raise HTTPException(400, "周报提示须为 1 至 4000 字")
+    row = session.get(Setting, REPORT_TEMPLATE_KEY) or Setting(key=REPORT_TEMPLATE_KEY)
+    row.value = data.template
+    session.add(row)
+    session.commit()
+    return {"template": row.value}
 
 
 class SemesterConfigIn(BaseModel):
@@ -288,6 +317,8 @@ def my_reports(session: Session = Depends(get_session), user: User = Depends(get
 
 @router.post("/my/{week}")
 def upsert_my_report(week: str, data: ReportIn, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role != "student" or week != current_week():
+        raise HTTPException(403, "只能提交自己的本周周报")
     r = session.exec(
         select(WeeklyReport).where(WeeklyReport.student_id == user.id, WeeklyReport.week == week)
     ).first()
@@ -300,6 +331,85 @@ def upsert_my_report(week: str, data: ReportIn, session: Session = Depends(get_s
     session.commit()
     session.refresh(r)
     return report_view(r, session)
+
+
+@router.post("/my/{week}/submit")
+def submit_my_report(week: str, content_md: str = Form(...), keep_ids: str = Form("[]"),
+                     file_keys: str = Form("[]"), files: list[UploadFile] = File(default=[]),
+                     session: Session = Depends(get_session),
+                     user: User = Depends(get_current_user)):
+    if user.role != "student" or week != current_week():
+        raise HTTPException(403, "只能提交自己的本周周报")
+    if not content_md.strip():
+        raise HTTPException(400, "周报内容不能为空")
+    r = session.exec(select(WeeklyReport).where(WeeklyReport.student_id == user.id, WeeklyReport.week == week)).first()
+    existing = session.exec(select(ReportAttachment).where(ReportAttachment.report_id == r.id)).all() if r else []
+    try:
+        keep_list = json.loads(keep_ids)
+        if not isinstance(keep_list, list) or not all(type(i) is int for i in keep_list):
+            raise ValueError()
+        keep = set(keep_list)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "附件列表格式错误")
+    if not keep.issubset({a.id for a in existing}):
+        raise HTTPException(400, "附件列表包含无效文件")
+    try:
+        keys = json.loads(file_keys)
+        if (not isinstance(keys, list) or len(keys) != len(files)
+                or len(set(keys)) != len(keys)
+                or not all(isinstance(key, str) and re.fullmatch(r"[a-z0-9-]{1,64}", key) for key in keys)):
+            raise ValueError()
+    except (ValueError, TypeError):
+        raise HTTPException(400, "新附件标识格式错误")
+    if len(keep) + len(files) > MAX_FILES:
+        raise HTTPException(400, f"每份周报最多 {MAX_FILES} 个附件")
+    saved = []
+    try:
+        for file in files:
+            saved.append(save_upload(file))
+        if not r:
+            r = WeeklyReport(student_id=user.id, week=week)
+        r.content_md = content_md
+        r.updated_at = datetime.utcnow()
+        session.add(r)
+        session.flush()
+        removed = [a for a in existing if a.id not in keep]
+        for a in removed:
+            session.delete(a)
+        for key, (stored, name, mime) in zip(keys, saved):
+            attachment = ReportAttachment(report_id=r.id, stored_name=stored, original_name=name, image_mime=mime)
+            session.add(attachment)
+            session.flush()
+            marker = f"attachment:pending-{key})"
+            if marker in r.content_md:
+                if not mime:
+                    raise HTTPException(400, f"「{name}」不是可插入正文的图片")
+                r.content_md = r.content_md.replace(marker, f"attachment:{attachment.id})")
+        if re.search(r"attachment:pending-[a-z0-9-]+", r.content_md):
+            raise HTTPException(400, "正文中有未上传的图片")
+        session.commit()
+    except Exception:
+        session.rollback()
+        for stored, _, _ in saved:
+            delete_upload(stored)
+        raise
+    for a in removed:
+        delete_upload(a.stored_name)
+    session.refresh(r)
+    return report_view(r, session)
+
+
+@router.get("/attachments/{attachment_id}")
+def report_attachment(attachment_id: int, session: Session = Depends(get_session),
+                      user: User = Depends(get_current_user)):
+    a = session.get(ReportAttachment, attachment_id)
+    r = session.get(WeeklyReport, a.report_id) if a else None
+    if not r:
+        raise HTTPException(404, "附件不存在")
+    if user.role != "teacher" and r.student_id != user.id:
+        raise HTTPException(403, "无权查看该附件")
+    return FileResponse(upload_path(a.stored_name), media_type=a.image_mime or "application/octet-stream",
+                        headers={"X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'"})
 
 
 @router.get("/board")

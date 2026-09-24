@@ -16,15 +16,17 @@
 |------|------|----------|------|
 | 进度看板 | `/progress` | 师生（**学生只读**） | 按年级分组展示全班论文进度：**两篇论文各一条 8 节点时间轴**、完成度（手写 SVG 甜甜圈）、节点计划/实际时间、自动风险判定（四级）。老师可点选节点、改节点名、设置风险基准、手动改风险、看往返与周报并「一键催办」；学生进去是全面降级只读。**老师的默认首页** |
 | 论文管理 | `/thesis` | 师生 | 多轮往返：学生提交文字+附件 → 老师批注并回传批注文件 → 学生再提交。全部留档。**上一轮未获批注时禁止开新一轮**，但可以「修改本次提交」。**学生的默认首页** |
-| 每周周报 | `/reports` | 师生 | 学生每周交 Markdown 周报（可编辑/预览/历史只读）；老师按周看全班 已交/未交/逾期 并点评 |
+| 每周周报 | `/reports` | 师生 | 学生每周交 Markdown 周报（可编辑/预览/历史只读），文字和图片在同一编辑区，可在光标位置插入图片并继续在图片后写文字；其他文件作为附件。老师按周看全班 已交/未交/逾期、点评，并可编辑学生撰写时的提示 |
 | 问答点评 | `/qa` | 师生 | 类小红书信息流：任何人发帖、全员可见、任何人可回复 |
-| 每日公告 | `/announcements` | 师生（发布仅老师） | 软木墙 + 便签，老师发布/删除 |
+| 每日公告 | `/announcements` | 师生（发布仅老师） | 软木墙 + 便签，老师发布/删除并可添加附件；点击便签查看全文与下载附件 |
 | 常用链接 | `/links` | 师生（维护仅老师） | 老师维护的外链按钮，新窗口打开 |
 | 消息中心 | `/messages` | 师生 | 老师催办发给学生的定向消息；学生看收件箱，Banner 铃铛有未读角标 |
 | 账号管理 | `/accounts` | **仅老师** | 增删改、重置密码；学生访问会被重定向到 `/thesis`。**不在主导航**，入口是 Banner 右上角的太阳 ☀ |
 
 登录后按角色分流：老师 → `/progress`，学生 → `/thesis`
 （常量 `TEACHER_HOME` / `STUDENT_HOME` 在 `App.jsx` 顶部，`<Home>` 用它俩分流）。
+
+周报与公告的附件存于 `GM_UPLOAD_DIR`，元数据分别在 `ReportAttachment`、`AnnouncementAttachment` 表里。每份周报或公告最多 10 个附件，每个不超过 20 MB；常见栅格图片在周报正文的插入位置显示。周报附件只有本人和老师能读取，公告附件供所有已登录用户下载。老师编辑的周报撰写提示存于 `Setting` 表，空库默认值由 `routers/reports.py` 提供。修改后端接口后需要重启 5183 服务，仅重新构建前端会让新接口返回 405。
 
 ---
 
@@ -175,8 +177,8 @@ backend/
     routers/
       grades.py    # /api/grades、/api/users
       thesis.py    # /api/thesis/* 风险基准配置、项目、多轮往返、附件
-      reports.py   # /api/reports/* 周报与点评
-      misc.py      # /api/questions、/api/announcements、/api/links
+    reports.py   # /api/reports/* 周报与点评
+    misc.py      # /api/questions、/api/announcements、/api/links
       messages.py  # /api/messages 定向消息
   scripts/         # reset_students.py / seed_student_demo.py / export_seed_snapshot.py
   uploads/         # 上传附件（uuid 命名，原始文件名存库），不入库

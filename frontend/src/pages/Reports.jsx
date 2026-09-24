@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { api } from '../api'
+import { api, downloadAttachment } from '../api'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
 import { usePageBanner } from '../banner'
+import AttachmentList from '../AttachmentList'
+import ReportEditor from '../ReportEditor'
 
 function ReportsBannerBridge() {
   usePageBanner({
@@ -17,6 +19,43 @@ const AVATAR_COLORS = [
   ['#f59e0b', '#fb923c'], ['#7ba05b', '#a3be78'],
   ['#fb923c', '#fbbf24'], ['#f43f5e', '#fb7185'],
 ]
+const DEFAULT_TEMPLATE = '## 本周进展\n- …\n\n## 遇到问题\n- …\n\n## 下周计划\n- …'
+const IMAGE_TOKEN = /!\[([^\]\n]*)\]\(attachment:(pending-[a-z0-9-]+|\d+)\)/g
+const isRasterImage = (file) => /^image\/(png|jpeg|gif|webp|bmp|avif)$/.test(file.type)
+
+function InlineReportImage({ name, path, file, onRemove, toast }) {
+  const [url, setUrl] = useState('')
+  useEffect(() => {
+    if (!path && !file) return undefined
+    let active = true
+    let objectUrl = ''
+    const load = async () => {
+      try {
+        objectUrl = URL.createObjectURL(file || await api.fileBlob(path))
+        if (active) setUrl(objectUrl)
+        else URL.revokeObjectURL(objectUrl)
+      } catch (e) { if (active) toast(e.message, 'error') }
+    }
+    load()
+    return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl) }
+  }, [file, path, toast])
+  return <figure className="report-inline-image">
+    {url ? <img src={url} alt={name} /> : <span>图片加载中…</span>}
+    <figcaption><span>{name}</span>
+      {path && <button type="button" onClick={() => downloadAttachment(path, name).catch((e) => toast(e.message, 'error'))}>下载</button>}
+      {onRemove && <button type="button" onClick={onRemove}>移除图片</button>}
+    </figcaption>
+  </figure>
+}
+
+function reportImage(token, name, attachments, pending, toast, onRemove) {
+  const saved = attachments.find((a) => String(a.id) === token)
+  const local = pending.find((item) => `pending-${item.key}` === token)
+  if (!saved && !local) return <span className="md-empty">图片「{name}」不可用</span>
+  return <InlineReportImage name={saved?.name || local.file.name}
+    path={saved ? `/reports/attachments/${saved.id}` : undefined} file={local?.file}
+    onRemove={onRemove} toast={toast} />
+}
 
 /* 后端状态 → 视觉状态
    stamp 一定要显式给出：印章的颜色完全由状态决定（已交=绿 / 逾期=红 / 未交=灰），
@@ -76,7 +115,7 @@ const ymd = (d) => (d
 const weekSunday = (week) => ymd(weekBounds(week)?.sunday)
 
 /* 极简 Markdown → JSX（标题 / 列表 / 加粗） */
-function Md({ src, empty = '该同学本周暂未提交周报。' }) {
+function Md({ src, attachments = [], pending = [], toast, empty = '该同学本周暂未提交周报。' }) {
   if (!src || !src.trim()) return <p className="md-empty">{empty}</p>
   const bold = (t) => t.split(/\*\*(.+?)\*\*/g).map((seg, i) => (i % 2 ? <strong key={i}>{seg}</strong> : seg))
   const blocks = []
@@ -85,6 +124,20 @@ function Md({ src, empty = '该同学本周暂未提交周报。' }) {
   src.split('\n').forEach((raw, idx) => {
     const t = raw.trim()
     if (!t) { flush(); return }
+    const images = [...t.matchAll(IMAGE_TOKEN)]
+    if (images.length) {
+      flush()
+      let offset = 0
+      images.forEach((match, n) => {
+        const before = t.slice(offset, match.index).trim()
+        if (before) blocks.push(<p key={`${idx}-before-${n}`}>{bold(before)}</p>)
+        blocks.push(<div key={`${idx}-image-${n}`}>{reportImage(match[2], match[1], attachments, pending, toast)}</div>)
+        offset = match.index + match[0].length
+      })
+      const after = t.slice(offset).trim()
+      if (after) blocks.push(<p key={`${idx}-after`}>{bold(after)}</p>)
+      return
+    }
     if (t.startsWith('## ')) { flush(); blocks.push(<h4 key={idx}>{t.slice(3)}</h4>) }
     else if (t.startsWith('# ')) { flush(); blocks.push(<h4 key={idx}>{t.slice(2)}</h4>) }
     else if (t.startsWith('- ')) { list.push(<li key={idx}>{bold(t.slice(2))}</li>) }
@@ -133,6 +186,13 @@ export default function Reports() {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [preview, setPreview] = useState(false)
+  const [template, setTemplate] = useState(DEFAULT_TEMPLATE)
+  const [templateDraft, setTemplateDraft] = useState('')
+  const [templateOpen, setTemplateOpen] = useState(false)
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState([])
+  const [keptAttachments, setKeptAttachments] = useState([])
+  const richEditor = useRef(null)
   const timers = useRef({})
   const toast = useToast()
 
@@ -149,6 +209,9 @@ export default function Reports() {
   }, [toast])
 
   useEffect(() => { loadWeeks() }, [loadWeeks])
+  useEffect(() => {
+    api.get('/reports/template').then((data) => setTemplate(data.template)).catch((e) => toast(e.message, 'error'))
+  }, [toast])
 
   /* 按周加载数据 */
   useEffect(() => {
@@ -174,7 +237,7 @@ export default function Reports() {
 
   /* ESC 关闭弹窗（手账本 + 学期基准周设置） */
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') { closeBook(); setSemCfgOpen(false) } }
+    const onKey = (e) => { if (e.key === 'Escape') { closeBook(); setSemCfgOpen(false); setTemplateOpen(false) } }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
@@ -316,12 +379,18 @@ export default function Reports() {
     if (!draft.trim()) return toast('内容不能为空', 'error')
     setSending(true)
     try {
-      await api.post(`/reports/my/${week}`, { content_md: draft })
+      const form = new FormData()
+      form.append('content_md', draft)
+      form.append('keep_ids', JSON.stringify(keptAttachments.map((a) => a.id)))
+      form.append('file_keys', JSON.stringify(pendingFiles.map((item) => item.key)))
+      pendingFiles.forEach((item) => form.append('files', item.file))
+      await api.postForm(`/reports/my/${week}/submit`, form)
       toast(`${week} 周报已提交 ✓`, 'success')
       setEditing(false)
       setOpen(null)
       const list = await api.get('/reports/my')
       setMine(list.find((r) => r.week === week) || null)
+      setMyList(list)
     } catch (e) { toast(e.message, 'error') } finally { setSending(false) }
   }
 
@@ -334,6 +403,8 @@ export default function Reports() {
   const startWrite = () => {
     setOpen(myCard[0]) // 学生端：打开自己的手账本并进入编辑态
     setDraft(mine?.content_md || '')
+    setKeptAttachments(mine?.attachments || [])
+    setPendingFiles([])
     setPreview(false)
     setEditing(true)
   }
@@ -400,6 +471,51 @@ export default function Reports() {
   const closeBook = () => {
     setOpen(null)
     setEditing(false)
+  }
+
+  const addReportFiles = (list) => {
+    const files = Array.from(list)
+    if (keptAttachments.length + pendingFiles.length + files.length > 10) {
+      toast('每份周报最多 10 个附件', 'error')
+      return
+    }
+    if (files.some((file) => file.size > 20 * 1024 * 1024)) {
+      toast('每个附件不能超过 20 MB', 'error')
+      return
+    }
+    const added = files.map((file) => ({
+      key: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
+      file,
+    }))
+    setPendingFiles((current) => [...current, ...added])
+    const images = added.filter((item) => isRasterImage(item.file))
+    if (images.length) {
+      if (richEditor.current && !preview) richEditor.current.insertImages(images)
+      else {
+        const lines = images.map((item) => `![${item.file.name.replace(/[\]\n]/g, '')}](attachment:pending-${item.key})`).join('\n')
+        setDraft((current) => `${current}${current && !current.endsWith('\n') ? '\n' : ''}${lines}\n`)
+        setPreview(false)
+      }
+    }
+  }
+
+  const removeInlineImage = (token) => {
+    if (token.startsWith('pending-')) {
+      setPendingFiles((list) => list.filter((item) => `pending-${item.key}` !== token))
+    } else {
+      setKeptAttachments((list) => list.filter((a) => String(a.id) !== token))
+    }
+  }
+
+  const saveTemplate = async () => {
+    if (!templateDraft.trim()) return toast('请填写周报提示', 'error')
+    setSavingTemplate(true)
+    try {
+      const data = await api.put('/reports/template', { template: templateDraft })
+      setTemplate(data.template)
+      setTemplateOpen(false)
+      toast('周报提示已更新', 'success')
+    } catch (e) { toast(e.message, 'error') } finally { setSavingTemplate(false) }
   }
 
   return (
@@ -519,6 +635,7 @@ export default function Reports() {
         <div className="section-head">
           <h2>{isTeacher ? '学生周报' : '我的周报'}</h2>
           <span className="line" />
+          {isTeacher && <button className="act act-view" onClick={() => { setTemplateDraft(template); setTemplateOpen(true) }}>✎ 编辑周报提示</button>}
           {!isTeacher && (
             <div className="head-actions">
               {isCurrentWeek ? (
@@ -638,8 +755,11 @@ export default function Reports() {
                   </div>
                   <div className="md">
                     <Md src={open.report?.content_md}
+                      attachments={open.report?.attachments || []} toast={toast}
                       empty={isTeacher ? '该同学本周暂未提交周报。' : '这一周还没有提交周报。'} />
                   </div>
+                  <AttachmentList existing={(open.report?.attachments || []).filter((a) => !open.report?.content_md?.includes(`attachment:${a.id})`))}
+                    pathFor={(id) => `/reports/attachments/${id}`} toast={toast} />
                 </>
               ) : (
                 <>
@@ -648,10 +768,25 @@ export default function Reports() {
                     <button className="mini-toggle" onClick={() => setPreview(!preview)}>{preview ? '继续编辑' : '预览'}</button>
                   </div>
                   {preview
-                    ? <div className="md"><Md src={draft} empty="（还没有内容）" /></div>
-                    : <textarea className="md-edit" value={draft} readOnly={!isCurrentWeek}
-                        onChange={(e) => setDraft(e.target.value)}
-                        placeholder={'## 本周进展\n- …\n\n## 遇到问题\n- …\n\n## 下周计划\n- …'} />}
+                    ? <div className="md"><Md src={draft} attachments={keptAttachments} pending={pendingFiles} toast={toast} empty="（还没有内容）" /></div>
+                    : <ReportEditor ref={richEditor} value={draft} onChange={setDraft} placeholder={template}
+                        attachments={keptAttachments} pending={pendingFiles}
+                        onRemoveImage={removeInlineImage} toast={toast} />}
+                  <div className="report-file-actions">
+                    <label className="mini-toggle">＋ 插入文件
+                      <input type="file" multiple onChange={(e) => { addReportFiles(e.target.files); e.target.value = '' }} />
+                    </label>
+                    <span>图片插入光标位置；单个不超过 20 MB，最多 10 个</span>
+                  </div>
+                  <AttachmentList existing={keptAttachments.filter((a) => !draft.includes(`attachment:${a.id})`))}
+                    pending={pendingFiles.filter((item) => !draft.includes(`attachment:pending-${item.key})`)).map((item) => item.file)}
+                    pathFor={(id) => `/reports/attachments/${id}`}
+                    onRemoveExisting={(id) => setKeptAttachments((list) => list.filter((a) => a.id !== id))}
+                    onRemovePending={(index) => {
+                      const loose = pendingFiles.filter((item) => !draft.includes(`attachment:pending-${item.key})`))
+                      setPendingFiles((list) => list.filter((item) => item.key !== loose[index]?.key))
+                    }}
+                    toast={toast} />
                 </>
               )}
             </div>
@@ -751,6 +886,20 @@ export default function Reports() {
               <button className="btn-pin" type="button" disabled={savingSem} onClick={saveSemesterConfig}>
                 {savingSem ? '保存中…' : '保存并重算'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isTeacher && templateOpen && (
+        <div className="overlay open" onClick={(e) => { if (e.target === e.currentTarget) setTemplateOpen(false) }}>
+          <div className="pwd-card report-template-card">
+            <span className="tape" />
+            <h3>编辑周报提示</h3>
+            <p className="pwd-sub">这段文字会显示在学生撰写周报的浅色提示中，支持用 Markdown 写示例格式。</p>
+            <textarea value={templateDraft} maxLength={4000} onChange={(e) => setTemplateDraft(e.target.value)} />
+            <div className="pwd-actions">
+              <button className="btn-ghost" onClick={() => setTemplateOpen(false)}>取消</button>
+              <button className="btn-pin" disabled={savingTemplate} onClick={saveTemplate}>{savingTemplate ? '保存中…' : '保存提示'}</button>
             </div>
           </div>
         </div>

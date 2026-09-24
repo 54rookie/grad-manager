@@ -50,6 +50,9 @@ async function request(path, options = {}) {
     } catch {}
     throw new Error(msg)
   }
+  if (res.status === 405 && (path === '/announcements/with-attachments' || /^\/reports\/my\/[^/]+\/submit$/.test(path))) {
+    throw new Error('后端尚未加载新的附件接口，请重启 5183 后端服务并刷新页面')
+  }
   if (!res.ok) {
     let msg = `请求失败 (${res.status})`
     try {
@@ -58,7 +61,7 @@ async function request(path, options = {}) {
     } catch {}
     throw new Error(msg)
   }
-  return res.json()
+  return options.asBlob ? res.blob() : res.json()
 }
 
 export const api = {
@@ -69,6 +72,19 @@ export const api = {
   delete: (p) => request(p, { method: 'DELETE' }),
   postForm: (p, formData) => request(p, { method: 'POST', body: formData }),
   putForm: (p, formData) => request(p, { method: 'PUT', body: formData }),
+  fileBlob: (p) => request(p, { asBlob: true }),
+}
+
+export async function downloadAttachment(path, name) {
+  const blob = await api.fileBlob(path)
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name || '附件'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 export async function downloadFile(storedName, origName) {

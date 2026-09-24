@@ -2337,14 +2337,15 @@ textarea { resize: vertical; line-height: 1.8; }
 .pg-report .modal.open { visibility: visible; opacity: 1; transition: opacity .35s var(--out); }
 .pg-report .modal-bg { position: absolute; inset: 0; background: rgba(120, 88, 40, .36);
   backdrop-filter: blur(9px) saturate(1.15); -webkit-backdrop-filter: blur(9px) saturate(1.15); cursor: pointer; }
-.pg-report .book { position: relative; width: min(1060px, 100%); max-height: 90vh; display: grid; grid-template-columns: 1.15fr .85fr;
+.pg-report .book { position: relative; width: min(1060px, 100%); max-height: 90vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   border-radius: 18px; box-shadow: 0 50px 110px rgba(110, 75, 30, .45); transform: translateY(46px) scale(.93); opacity: 0;
   transition: transform .55s var(--spring), opacity .3s; }
 .pg-report .modal.open .book { transform: translateY(0) scale(1); opacity: 1; }
 .pg-report .book::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 34px; margin-left: -17px; z-index: 3; pointer-events: none;
   background: linear-gradient(90deg, transparent, rgba(120, 85, 40, .22) 42%, rgba(80, 55, 20, .3) 50%, rgba(120, 85, 40, .22) 58%, transparent); }
-.pg-report .page-l, .pg-report .page-r { position: relative; padding: 34px 36px 30px; overflow: auto; max-height: 90vh;
-  scrollbar-width: thin; scrollbar-color: #d9c69c transparent; }
+.pg-report .page-l, .pg-report .page-r { position: relative; min-width: 0; padding: 34px 36px 30px;
+  overflow-x: hidden; overflow-y: auto; max-height: 90vh; scrollbar-width: none; -ms-overflow-style: none; }
+.pg-report .page-l::-webkit-scrollbar, .pg-report .page-r::-webkit-scrollbar { display: none; }
 .pg-report .page-l { background: repeating-linear-gradient(180deg, transparent 0 31px, rgba(123, 160, 91, .16) 31px 32px),
     linear-gradient(100deg, #f8f0dd, #fffdf6 12%);
   border-radius: 18px 4px 4px 18px; border: 1.5px solid #e0d0ac; border-right: none; animation: pg-pageFlip .6s var(--out) both; }
@@ -2389,6 +2390,29 @@ textarea { resize: vertical; line-height: 1.8; }
 .pg-report .md-edit { width: 100%; min-height: 420px; border: none; outline: none; background: transparent; resize: none;
   font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-size: 13.5px; line-height: 32px; color: var(--ink); caret-color: var(--amber); }
+.pg-report .md-edit::placeholder { color: #85827d; opacity: 1; }
+.pg-report .report-editor { width: 100%; min-height: 420px; padding: 10px 12px; box-sizing: border-box;
+  border: 1.5px dashed rgba(176, 144, 94, .4); border-radius: 9px; outline: none;
+  background: rgba(255, 253, 246, .32); white-space: pre-wrap; overflow-wrap: anywhere;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 13.5px; line-height: 32px; color: var(--ink); caret-color: var(--amber); }
+.pg-report .report-editor:focus { border-color: var(--sun); }
+.pg-report .report-editor:empty::before { content: attr(data-placeholder); color: #85827d; white-space: pre-wrap; pointer-events: none; }
+.pg-report .report-inline-image { display: block; width: min(100%, 420px); max-width: 100%; box-sizing: border-box;
+  margin: 10px 0 16px; padding: 10px; border: 1px dashed #d9c69c; border-radius: 9px;
+  background: rgba(255, 255, 255, .6); overflow: hidden; white-space: normal; }
+.pg-report .report-inline-image img { display: block; width: auto; height: auto; max-width: 100%; max-height: 260px; margin: 0 auto; object-fit: contain; }
+.pg-report .report-inline-image figcaption { display: flex; align-items: center; gap: 8px; margin-top: 7px; font-size: 11px; color: var(--ink-2); overflow-wrap: anywhere; }
+.pg-report .report-inline-image figcaption span { flex: 1; min-width: 0; }
+.pg-report .report-inline-image button { border: 1px solid #e8d9bc; border-radius: 6px; background: #fffaf0; color: var(--amber); padding: 3px 8px; cursor: pointer; }
+.pg-report .report-editor-caption { display: flex; align-items: center; gap: 8px; margin-top: 7px; font-size: 11px; color: var(--ink-2); }
+.pg-report .report-editor-caption span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pg-report .report-editor-caption button { flex: none; border: 1px solid #e8d9bc; border-radius: 6px; background: #fffaf0; color: var(--amber); padding: 3px 8px; cursor: pointer; }
+.pg-report .report-file-actions { display: flex; align-items: center; gap: 12px; margin: 12px 0; color: var(--ink-3); font-size: 11px; }
+.pg-report .report-file-actions label { display: inline-block; cursor: pointer; }
+.pg-report .report-file-actions input { display: none; }
+.pg-report .report-template-card { width: min(560px, 90vw); }
+.pg-report .report-template-card textarea { width: 100%; min-height: 240px; padding: 12px; resize: vertical; border: 1.5px solid #e8d9bc; border-radius: 10px; background: #fffdf7; color: var(--ink); font: inherit; line-height: 1.6; }
 .pg-report .page-l .edit-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; padding-right: 44px; }
 .pg-report .page-l .edit-bar .hint { font-size: 11px; color: var(--ink-3); }
 .pg-report .mini-toggle { font: inherit; font-size: 12px; font-weight: 900; color: var(--ink-2); cursor: pointer;
@@ -2495,6 +2519,9 @@ textarea { resize: vertical; line-height: 1.8; }
   border-radius: 4px; break-inside: avoid; transform: rotate(var(--r, 0deg));
   box-shadow: 0 10px 18px -8px rgba(80, 52, 20, .5), 0 2px 5px rgba(80, 52, 20, .25);
   transition: transform .35s var(--ease-spring), box-shadow .35s; animation: pg-notePin .6s var(--ease-spring) both; }
+.pg-board .note { cursor: pointer; }
+.pg-board .note:focus-visible { outline: 3px solid var(--rose); outline-offset: 4px; }
+.pg-board .note-attachment-count { margin-top: 8px; font-size: 12px; color: var(--amber); font-weight: 700; }
 .pg-board .note:hover { transform: rotate(0deg) scale(1.03) translateY(-4px);
   box-shadow: 0 22px 34px -12px rgba(80, 52, 20, .55), 0 4px 8px rgba(80, 52, 20, .25); z-index: 5; }
 .pg-board .note.c-cream { background: linear-gradient(175deg, #fffbe9, #fdf3cf); }
@@ -2563,6 +2590,18 @@ textarea { resize: vertical; line-height: 1.8; }
 .pg-board .field input[type="text"], .pg-board .field textarea { width: 100%; padding: 9px 4px; border: none;
   border-bottom: 1.5px dashed rgba(74, 63, 52, .3); background: transparent; outline: none; font-family: inherit;
   font-size: 14.5px; letter-spacing: 1px; color: var(--ink); transition: border-color .3s; resize: none; }
+.pg-board .field input[type="file"] { max-width: 100%; font-size: 12px; }
+.pg-board .pending-names { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; font-size: 12px; }
+.pg-board .pending-names button { border: 0; background: none; color: var(--rose); cursor: pointer; }
+.pg-board .note-detail { max-height: 85vh; overflow: auto; }
+.pg-board .note-detail p { white-space: pre-wrap; line-height: 1.8; }
+.pg-board .note-detail .detail-close { position: absolute; top: 15px; right: 15px; border: 0; background: transparent; cursor: pointer; font-size: 18px; color: var(--ink-2); }
+.attachment-list { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+.attachment-item { padding: 9px; border: 1px dashed rgba(140, 110, 70, .35); border-radius: 9px; background: rgba(255, 255, 255, .56); }
+.attachment-item img { display: block; max-width: 100%; max-height: 320px; width: auto; height: auto; margin: 0 auto 8px; border-radius: 6px; object-fit: contain; }
+.attachment-line { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; }
+.attachment-line span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.attachment-line button { flex: none; border: 1px solid #e8d9bc; border-radius: 6px; background: #fffaf0; color: var(--amber); padding: 4px 9px; cursor: pointer; }
 .pg-board .field input[type="text"]:focus, .pg-board .field textarea:focus { border-bottom-color: var(--sun); }
 .pg-board .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .pg-board .chip { padding: 5px 14px; font-size: 13px; letter-spacing: 1.5px; border-radius: 999px; cursor: pointer; user-select: none;

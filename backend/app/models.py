@@ -153,6 +153,14 @@ class WeeklyReport(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ReportAttachment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    report_id: int = Field(foreign_key="weeklyreport.id", index=True)
+    stored_name: str
+    original_name: str
+    image_mime: Optional[str] = None
+
+
 class ReportComment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     report_id: int = Field(foreign_key="weeklyreport.id", index=True)
@@ -182,6 +190,14 @@ class Announcement(SQLModel, table=True):
     title: str
     content: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AnnouncementAttachment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    announcement_id: int = Field(foreign_key="announcement.id", index=True)
+    stored_name: str
+    original_name: str
+    image_mime: Optional[str] = None
 
 
 class Setting(SQLModel, table=True):

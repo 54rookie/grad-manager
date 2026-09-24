@@ -17,7 +17,7 @@ from sqlmodel import Session, select  # noqa: E402
 from app.auth import hash_password  # noqa: E402
 from app.database import UPLOAD_DIR, engine  # noqa: E402
 from app.models import (  # noqa: E402
-    Question, Reply, ReportComment, ThesisProject, ThesisRound, User, WeeklyReport,
+    Question, Reply, ReportComment, ReportAttachment, ThesisProject, ThesisRound, User, WeeklyReport,
 )
 
 TEACHER = "teacher"
@@ -157,6 +157,9 @@ def clean_student(s: Session, uid: int):
         s.delete(p)
 
     for rep in s.exec(select(WeeklyReport).where(WeeklyReport.student_id == uid)).all():
+        for a in s.exec(select(ReportAttachment).where(ReportAttachment.report_id == rep.id)).all():
+            (UPLOAD_DIR / a.stored_name).unlink(missing_ok=True)
+            s.delete(a)
         for c in s.exec(select(ReportComment).where(ReportComment.report_id == rep.id)).all():
             s.delete(c)
         s.delete(rep)

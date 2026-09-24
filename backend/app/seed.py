@@ -10,6 +10,7 @@
   - `scripts/reset_students.py`     按 demo_data.STUDENTS 重建账号与空白项目
   - `scripts/seed_student_demo.py`  给指定学生重灌往返 / 周报 / 问答（数据在 demo_data.DEMO）
 """
+import base64
 import json
 import uuid
 from datetime import datetime
@@ -22,9 +23,10 @@ from .auth import hash_password
 from .database import UPLOAD_DIR, engine
 from .demo_data import INITIAL_PASSWORD
 from .models import (
-    Announcement, Grade, Link, Question, Reply, ReportComment, Setting,
+    Announcement, AnnouncementAttachment, Grade, Link, Question, Reply, ReportComment, ReportAttachment, Setting,
     ThesisProject, ThesisRound, User, WeeklyReport, RISK_CONFIG_KEY,
 )
+from .routers.reports import REPORT_TEMPLATE_KEY
 
 
 def _dt(value: str | None):
@@ -40,6 +42,12 @@ def _write_attachment(orig: str) -> str:
     """
     stored = f"{uuid.uuid4().hex}{Path(orig).suffix}"
     (UPLOAD_DIR / stored).write_text(SNAP.ATTACHMENTS.get(orig, ""), encoding="utf-8")
+    return stored
+
+
+def _write_binary_attachment(body_b64: str) -> str:
+    stored = uuid.uuid4().hex
+    (UPLOAD_DIR / stored).write_bytes(base64.b64decode(body_b64))
     return stored
 
 
@@ -121,6 +129,13 @@ def seed():
                 content=c["content"], created_at=_dt(c["created_at"]),
             ))
         s.commit()
+        for a in getattr(SNAP, "REPORT_FILES", []):
+            s.add(ReportAttachment(
+                report_id=week_ids[(a["student"], a["week"])],
+                stored_name=_write_binary_attachment(a["body_b64"]),
+                original_name=a["name"], image_mime=a["image_mime"],
+            ))
+        s.commit()
 
         # ---------- 问答 ----------
         q_ids = []
@@ -137,9 +152,19 @@ def seed():
         s.commit()
 
         # ---------- 公告 / 常用链接 ----------
+        announcement_ids = []
         for a in SNAP.ANNOUNCEMENTS:
-            s.add(Announcement(author_id=users[a["author"]].id, title=a["title"],
-                               content=a["content"], created_at=_dt(a["created_at"])))
+            row = Announcement(author_id=users[a["author"]].id, title=a["title"],
+                               content=a["content"], created_at=_dt(a["created_at"]))
+            s.add(row)
+            s.flush()
+            announcement_ids.append(row.id)
+        for a in getattr(SNAP, "ANNOUNCEMENT_FILES", []):
+            s.add(AnnouncementAttachment(
+                announcement_id=announcement_ids[a["announcement"]],
+                stored_name=_write_binary_attachment(a["body_b64"]),
+                original_name=a["name"], image_mime=a["image_mime"],
+            ))
         for l in SNAP.LINKS:
             s.add(Link(title=l["title"], url=l["url"], created_by=users[l["created_by"]].id))
         s.commit()
@@ -148,6 +173,9 @@ def seed():
         if SNAP.RISK_CONFIG:
             s.add(Setting(key=RISK_CONFIG_KEY,
                           value=json.dumps(SNAP.RISK_CONFIG, ensure_ascii=False)))
+            s.commit()
+        if getattr(SNAP, "REPORT_TEMPLATE", None):
+            s.add(Setting(key=REPORT_TEMPLATE_KEY, value=SNAP.REPORT_TEMPLATE))
             s.commit()
 
         print(

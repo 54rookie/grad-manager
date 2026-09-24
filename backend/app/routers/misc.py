@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, Form, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from ..auth import get_current_user, require_teacher
 from ..database import get_session
-from ..models import User, Question, Reply, Announcement, Link
+from ..models import User, Question, Reply, Announcement, AnnouncementAttachment, Link
+from ..uploads import MAX_FILES, save_upload, delete_upload, upload_path
 
 router = APIRouter(prefix="/api", tags=["misc"])
 
@@ -85,16 +87,20 @@ class AnnouncementIn(BaseModel):
     content: str
 
 
+def announcement_view(a: Announcement, session: Session) -> dict:
+    u = session.get(User, a.author_id)
+    attachments = session.exec(select(AnnouncementAttachment).where(AnnouncementAttachment.announcement_id == a.id)).all()
+    return {
+        "id": a.id, "title": a.title, "content": a.content, "created_at": a.created_at,
+        "author_name": u.name if u else "?",
+        "attachments": [{"id": f.id, "name": f.original_name} for f in attachments],
+    }
+
+
 @router.get("/announcements")
 def list_announcements(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     items = session.exec(select(Announcement).order_by(Announcement.created_at.desc())).all()
-    return [
-        {
-            "id": a.id, "title": a.title, "content": a.content, "created_at": a.created_at,
-            "author_name": (u.name if (u := session.get(User, a.author_id)) else "?"),
-        }
-        for a in items
-    ]
+    return [announcement_view(a, session) for a in items]
 
 
 @router.post("/announcements")
@@ -103,7 +109,46 @@ def create_announcement(data: AnnouncementIn, session: Session = Depends(get_ses
     session.add(a)
     session.commit()
     session.refresh(a)
-    return a
+    return announcement_view(a, session)
+
+
+@router.post("/announcements/with-attachments")
+def create_announcement_with_attachments(title: str = Form(...), content: str = Form(...),
+                                         files: list[UploadFile] = File(default=[]),
+                                         session: Session = Depends(get_session),
+                                         teacher: User = Depends(require_teacher)):
+    if not title.strip() or not content.strip():
+        raise HTTPException(400, "标题和内容不能为空")
+    if len(files) > MAX_FILES:
+        raise HTTPException(400, f"每条公告最多 {MAX_FILES} 个附件")
+    saved = []
+    try:
+        for file in files:
+            saved.append(save_upload(file))
+        a = Announcement(author_id=teacher.id, title=title.strip(), content=content.strip())
+        session.add(a)
+        session.flush()
+        for stored, name, mime in saved:
+            session.add(AnnouncementAttachment(announcement_id=a.id, stored_name=stored,
+                                               original_name=name, image_mime=mime))
+        session.commit()
+    except Exception:
+        session.rollback()
+        for stored, _, _ in saved:
+            delete_upload(stored)
+        raise
+    session.refresh(a)
+    return announcement_view(a, session)
+
+
+@router.get("/announcements/attachments/{attachment_id}")
+def announcement_attachment(attachment_id: int, session: Session = Depends(get_session),
+                            user: User = Depends(get_current_user)):
+    a = session.get(AnnouncementAttachment, attachment_id)
+    if not a or not session.get(Announcement, a.announcement_id):
+        raise HTTPException(404, "附件不存在")
+    return FileResponse(upload_path(a.stored_name), media_type="application/octet-stream",
+                        headers={"X-Content-Type-Options": "nosniff"})
 
 
 @router.delete("/announcements/{aid}")
@@ -111,8 +156,13 @@ def delete_announcement(aid: int, session: Session = Depends(get_session), teach
     a = session.get(Announcement, aid)
     if not a:
         raise HTTPException(404, "公告不存在")
+    attachments = session.exec(select(AnnouncementAttachment).where(AnnouncementAttachment.announcement_id == aid)).all()
+    for file in attachments:
+        session.delete(file)
     session.delete(a)
     session.commit()
+    for file in attachments:
+        delete_upload(file.stored_name)
     return {"ok": True}
 
 

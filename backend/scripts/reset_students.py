@@ -16,7 +16,7 @@ from app.database import UPLOAD_DIR, engine  # noqa: E402
 from app.demo_data import INITIAL_PASSWORD, STUDENTS  # noqa: E402
 from app.models import (  # noqa: E402
     DEFAULT_MILESTONES, Announcement, Grade, Link, Question, Reply,
-    ReportComment, ThesisProject, ThesisRound, User, WeeklyReport,
+    ReportComment, ReportAttachment, ThesisProject, ThesisRound, User, WeeklyReport,
 )
 
 KEEP_GRADES = sorted({gname for _, _, _, gname in STUDENTS})
@@ -43,6 +43,9 @@ def main():
         # 2) 周报 + 点评
         for r in s.exec(select(WeeklyReport)).all():
             if r.student_id in ids:
+                for a in s.exec(select(ReportAttachment).where(ReportAttachment.report_id == r.id)).all():
+                    orphan_files.append(a.stored_name)
+                    s.delete(a)
                 for c in s.exec(select(ReportComment).where(ReportComment.report_id == r.id)).all():
                     s.delete(c)
                 s.delete(r)

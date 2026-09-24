@@ -3,6 +3,7 @@ import { api } from '../api'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
 import { usePageBanner } from '../banner'
+import AttachmentList from '../AttachmentList'
 
 function AnnouncementsBannerBridge() {
   usePageBanner({
@@ -70,6 +71,8 @@ export default function Announcements() {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
+  const [files, setFiles] = useState([])
+  const [selected, setSelected] = useState(null)
   const [tag, setTag] = useState('notice')
   const [color, setColor] = useState('c-cream')
   const [sending, setSending] = useState(false)
@@ -86,7 +89,7 @@ export default function Announcements() {
 
   /* ESC 关闭发布弹层 */
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') { setOpen(false); setSelected(null) } }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
@@ -99,6 +102,7 @@ export default function Announcements() {
       try {
         await api.delete(`/announcements/${note.id}`)
         setNotes((list) => list.filter((n) => n.id !== note.id))
+        setSelected(null)
         toast('便签已撕下')
       } catch (e) {
         toast(e.message, 'error')
@@ -109,15 +113,21 @@ export default function Announcements() {
 
   const publish = async () => {
     if (!title.trim() || !body.trim()) return toast('标题和内容都要写哦', 'error')
+    if (files.length > 10 || files.some((file) => file.size > 20 * 1024 * 1024)) return toast('最多 10 个附件，单个不超过 20 MB', 'error')
     setSending(true)
     try {
-      const created = await api.post('/announcements', { title: title.trim(), content: body.trim() })
+      const form = new FormData()
+      form.append('title', title.trim())
+      form.append('content', body.trim())
+      files.forEach((file) => form.append('files', file))
+      const created = await api.postForm('/announcements/with-attachments', form)
       const map = { ...readStyles(), [created.id]: { __tag: tag, __color: color } }
       writeStyles(map)
       setStyles(map)
       setOpen(false)
       setTitle('')
       setBody('')
+      setFiles([])
       setTag('notice')
       setColor('c-cream')
       toast('便签已钉上公告板 📌', 'success')
@@ -166,14 +176,17 @@ export default function Announcements() {
             {rendered.map(({ a, s }) => (
               <article key={a.id}
                 className={`note ${s.color} ${s.shape}${crumpling === a.id ? ' crumpling' : ''}`}
-                style={{ '--r': s.rot }}>
+                style={{ '--r': s.rot }} tabIndex={0} role="button" aria-label={`查看公告：${a.title}`}
+                onClick={() => setSelected(a)}
+                onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setSelected(a) } }}>
                 {s.deco === 'tape' ? <Tape i={s.tapeIdx} /> : <Pin color={s.pinColor} />}
                 {isTeacher && (
-                  <button className="note-del" title="撕下这张便签" onClick={() => tear(a)}>✕</button>
+                  <button className="note-del" title="撕下这张便签" onClick={(e) => { e.stopPropagation(); tear(a) }}>✕</button>
                 )}
                 <span className={`note-tag tag-${s.tag}`}>{TAG_NAME[s.tag]}</span>
                 <h3>{a.title}</h3>
                 <p>{a.content}</p>
+                {!!a.attachments?.length && <div className="note-attachment-count">📎 {a.attachments.length} 个附件 · 点击查看</div>}
                 <div className="note-meta">
                   <span className="note-date">{new Date(a.created_at).toISOString().slice(0, 10)}</span>
                   <span className="note-author">{a.author_name}</span>
@@ -200,6 +213,13 @@ export default function Announcements() {
               onChange={(e) => setBody(e.target.value)} />
           </div>
           <div className="field">
+            <label>附件</label>
+            <input type="file" multiple onChange={(e) => { const chosen = Array.from(e.target.files); setFiles((current) => [...current, ...chosen]); e.target.value = '' }} />
+            {!!files.length && <div className="pending-names">{files.map((file, i) => <span key={`${i}-${file.name}`}>
+              📎 {file.name} <button type="button" onClick={() => setFiles((list) => list.filter((_, n) => n !== i))}>移除</button>
+            </span>)}</div>}
+          </div>
+          <div className="field">
             <label>分类</label>
             <div className="chips">
               {TAGS.map((t) => (
@@ -223,6 +243,17 @@ export default function Announcements() {
           </div>
         </div>
       </div>
+      {selected && <div className="overlay open" onClick={(e) => { if (e.target === e.currentTarget) setSelected(null) }}>
+        <div className="composer note-detail" role="dialog" aria-modal="true" aria-label={selected.title}>
+          <span className="tape t-sun" />
+          <button className="detail-close" onClick={() => setSelected(null)} aria-label="关闭">✕</button>
+          <h2>{selected.title}</h2>
+          <p>{selected.content}</p>
+          <AttachmentList existing={selected.attachments || []}
+            pathFor={(id) => `/announcements/attachments/${id}`} toast={toast} />
+          <div className="note-meta"><span>{new Date(selected.created_at).toISOString().slice(0, 10)}</span><span>{selected.author_name}</span></div>
+        </div>
+      </div>}
     </div>
   )
 }

@@ -12,6 +12,7 @@
   2. 附件的存储名 —— uuid，每次生成都不同；但**界面显示的原始文件名一致**
   3. 自增 id —— 按插入顺序重新分配（关系仍然正确，只是数值可能不同）
 """
+import base64
 import json
 import sys
 from pathlib import Path
@@ -22,9 +23,10 @@ from sqlmodel import Session, select  # noqa: E402
 
 from app.database import engine  # noqa: E402
 from app.models import (  # noqa: E402
-    Announcement, Grade, Link, Question, Reply, ReportComment, Setting,
+    Announcement, AnnouncementAttachment, Grade, Link, Question, Reply, ReportComment, ReportAttachment, Setting,
     ThesisProject, ThesisRound, User, WeeklyReport, RISK_CONFIG_KEY,
 )
+from app.routers.reports import REPORT_TEMPLATE_KEY  # noqa: E402
 
 OUT = Path(__file__).resolve().parent.parent / "app" / "seed_snapshot.py"
 
@@ -117,6 +119,18 @@ def main():
             "created_at": r.created_at.isoformat(sep=" ", timespec="microseconds"),
             "updated_at": r.updated_at.isoformat(sep=" ", timespec="microseconds"),
         } for r in reports]
+        report_files = []
+        for a in sorted(s.exec(select(ReportAttachment)).all(), key=lambda a: a.id):
+            if a.report_id not in week_of_report:
+                continue
+            path = UPLOAD_DIR / a.stored_name
+            if not path.is_file():
+                continue
+            sid, week = week_of_report[a.report_id]
+            report_files.append({
+                "student": name_of(sid), "week": week, "name": a.original_name,
+                "image_mime": a.image_mime, "body_b64": base64.b64encode(path.read_bytes()).decode("ascii"),
+            })
 
         comment_rows = []
         for c in sorted(s.exec(select(ReportComment)).all(), key=lambda c: c.id):
@@ -141,16 +155,31 @@ def main():
         } for r in sorted(s.exec(select(Reply)).all(), key=lambda r: r.id)]
 
         # 公告 / 链接
+        announcements = sorted(s.exec(select(Announcement)).all(), key=lambda a: a.id)
+        ann_index = {a.id: i for i, a in enumerate(announcements)}
         ann_rows = [{
             "author": name_of(a.author_id), "title": a.title, "content": a.content,
             "created_at": a.created_at.isoformat(sep=" ", timespec="microseconds"),
-        } for a in sorted(s.exec(select(Announcement)).all(), key=lambda a: a.id)]
+        } for a in announcements]
+        announcement_files = []
+        for a in sorted(s.exec(select(AnnouncementAttachment)).all(), key=lambda a: a.id):
+            if a.announcement_id not in ann_index:
+                continue
+            path = UPLOAD_DIR / a.stored_name
+            if not path.is_file():
+                continue
+            announcement_files.append({
+                "announcement": ann_index[a.announcement_id], "name": a.original_name,
+                "image_mime": a.image_mime, "body_b64": base64.b64encode(path.read_bytes()).decode("ascii"),
+            })
         link_rows = [{
             "title": l.title, "url": l.url, "created_by": name_of(l.created_by),
         } for l in sorted(s.exec(select(Link)).all(), key=lambda l: l.id)]
 
         cfg_row = s.get(Setting, RISK_CONFIG_KEY)
         risk_config = json.loads(cfg_row.value) if cfg_row and cfg_row.value else None
+        template_row = s.get(Setting, REPORT_TEMPLATE_KEY)
+        report_template = template_row.value if template_row else None
 
     out = [
         '"""演示数据快照 —— **由 scripts/export_seed_snapshot.py 从真实数据库导出**，不要手写。\n',
@@ -173,12 +202,15 @@ def main():
         block("ATTACHMENTS", attachment_body, "演示附件的正文：原始文件名 → 内容"),
         block("ROUNDS", round_rows, "多轮往返（student_submitted_at / feedback_at 为绝对时间）"),
         block("REPORTS", report_rows, "周报"),
+        block("REPORT_FILES", report_files, "周报附件（base64 编码，保留二进制内容）"),
         block("REPORT_COMMENTS", comment_rows, "周报点评"),
         block("QUESTIONS", question_rows, "问答主贴"),
         block("REPLIES", reply_rows, "问答回复（question 是 QUESTIONS 里的下标）"),
         block("ANNOUNCEMENTS", ann_rows, "公告"),
+        block("ANNOUNCEMENT_FILES", announcement_files, "公告附件（base64 编码，保留二进制内容）"),
         block("LINKS", link_rows, "常用链接"),
         block("RISK_CONFIG", risk_config, "风险基准配置（与 Setting 表里的一致）"),
+        block("REPORT_TEMPLATE", report_template, "老师自定义的周报提示"),
     ]
     OUT.write_text("".join(out), encoding="utf-8")
     print(f"已导出 → {OUT}")

@@ -41,12 +41,9 @@ export default function Layout() {
     } catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
   }
 
-  /* 注：原来这里量 .bar-divider 的文档 Y 写进 --ride-line，给贴虚线骑的鹈鹕用。
-     ride-a 改成贴 .day-banner 下边缘之后，这个变量没有消费者了，整段测量一并删掉。 */
-
   return (
     <div className="pg-shell">
-      {/* 全局聚合 Banner（品牌/导航/用户 + 页面三插槽）+ 内容区 */}
+      {/* 全局聚合 Banner（修仙者/导航/用户 + 页面三插槽）+ 内容区 */}
       <BannerProvider extraActions={
         <button className="dropdown-item" type="button" onClick={openPwd}>
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none">

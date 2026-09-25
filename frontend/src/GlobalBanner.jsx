@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import Pelican from './pelican'
+import AscensionFormation from './AscensionFormation'
 import { useMessages } from './messages'
 
 /**
  * 全局聚合 Banner（shimen-global-banner.html 原型 100% 还原）
  *
  * 职责：纯展示 + 全局导航 + 用户区。
- * 结构：品牌（左，绝对定位） + 大标题/小标题（中，绝对居中） + 用户区（右上，太阳左侧）
+ * 结构：修仙者（左上） + 大标题/小标题（中，绝对居中） + 用户区（右上，太阳左侧）
  *       + 底部主导航。
  * 用户区刻意放在 .day-banner 之外（.pg-gb 的直接子级）：.day-banner 有 overflow: hidden
  * 用来裁云朵/光芒，放进去会把向下展开的下拉菜单一起裁掉。
@@ -94,19 +94,9 @@ export default function GlobalBanner({ user, logout, title, subtitle, extraActio
         <span className="tape-corner tape-tl" />
         <span className="tape-corner tape-br" />
 
-        {/* ===== 单层：品牌（左，绝对定位） + 标题（中，绝对居中） ===== */}
+        {/* ===== 标题（居中） ===== */}
         <div className="bar-top">
-          <NavLink className="brand" to="/">
-            <span className="brand-seal">师</span>
-            <span>
-              <span className="brand-name">师门<em>手账</em></span><br />
-              <span className="brand-sub">记一笔晴日，伴一程研途</span>
-            </span>
-          </NavLink>
-
-          {/* 插槽 1 + 2：大标题 / 小标题
-              两侧元素都脱离文档流，这里是 bar-top 唯一的在流子元素，
-              由 justify-content: center 真正居中，不再受品牌宽度影响 */}
+          {/* 插槽 1 + 2：大标题 / 小标题 */}
           <div className="slot-text">
             <h1 className="slot slot-1">{title}</h1>
             {subtitle && <p className="slot slot-2">{subtitle}</p>}
@@ -125,6 +115,10 @@ export default function GlobalBanner({ user, logout, title, subtitle, extraActio
           ))}
         </nav>
       </header>
+
+      <NavLink className="banner-formation" to="/progress" aria-label="返回进度看板">
+        <AscensionFormation />
+      </NavLink>
 
       {/* 用户区：与 .day-banner 同级（.pg-gb 的子级），绝对定位到 Banner 右上角、
           太阳的左侧；放下拉菜单时不会被 .day-banner 的 overflow: hidden 裁掉 */}
@@ -174,10 +168,6 @@ export default function GlobalBanner({ user, logout, title, subtitle, extraActio
         </div>
       </div>
 
-      {/* 最大的一只鹈鹕：贴着 Banner 的分隔虚线骑
-          挂在 .pg-gb 里（不是 .day-banner 里——那层 overflow:hidden 会把它裁掉），
-          z-index 高于 Banner 内容，所以不会被压住；随文档滚动。 */}
-      <div className="ride ride-a ride-doc" aria-hidden="true"><Pelican speed={1} /></div>
     </div>
   )
 }

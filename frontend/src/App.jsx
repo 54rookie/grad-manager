@@ -11,10 +11,7 @@ import Links from './pages/Links'
 import Accounts from './pages/Accounts'
 import Messages from './pages/Messages'
 
-// 学生进入系统后的默认首页
-const STUDENT_HOME = '/thesis'
-// 老师进入系统后的默认首页
-const TEACHER_HOME = '/progress'
+const HOME = '/progress'
 
 function Guard({ children }) {
   const { user, loading } = useAuth()
@@ -23,17 +20,15 @@ function Guard({ children }) {
   return children
 }
 
-// 仅老师可见的页面：学生直接访问会被送回自己的首页
+// 仅老师可见的页面：学生直接访问会被送回首页
 function TeacherOnly({ children }) {
   const { user } = useAuth()
-  if (user.role !== 'teacher') return <Navigate to={STUDENT_HOME} replace />
+  if (user.role !== 'teacher') return <Navigate to={HOME} replace />
   return children
 }
 
-// 根路径按角色分流
 function Home() {
-  const { user } = useAuth()
-  return <Navigate to={user.role === 'teacher' ? TEACHER_HOME : STUDENT_HOME} replace />
+  return <Navigate to={HOME} replace />
 }
 
 export default function App() {

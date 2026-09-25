@@ -14,17 +14,16 @@
 
 | 模块 | 路由 | 可见角色 | 说明 |
 |------|------|----------|------|
-| 进度看板 | `/progress` | 师生（**学生只读**） | 按年级分组展示全班论文进度：**两篇论文各一条 8 节点时间轴**、完成度（手写 SVG 甜甜圈）、节点计划/实际时间、自动风险判定（四级）。老师可点选节点、改节点名、设置风险基准、手动改风险、看往返与周报并「一键催办」；学生进去是全面降级只读。**老师的默认首页** |
-| 论文管理 | `/thesis` | 师生 | 多轮往返：学生提交文字+附件 → 老师批注并回传批注文件 → 学生再提交。全部留档。**上一轮未获批注时禁止开新一轮**，但可以「修改本次提交」。**学生的默认首页** |
+| 进度看板 | `/progress` | 师生（**学生只读**） | 按年级分组展示全班论文进度：**两篇论文各一条 8 节点时间轴**、完成度（手写 SVG 甜甜圈）、节点计划/实际时间、自动风险判定（四级）。老师可点选节点、改节点名、设置风险基准、手动改风险、看往返与周报并「一键催办」；学生进去是全面降级只读。**师生共同的默认首页** |
+| 论文管理 | `/thesis` | 师生 | 多轮往返：学生提交文字+附件 → 老师批注并回传批注文件 → 学生再提交。全部留档。**上一轮未获批注时禁止开新一轮**，但可以「修改本次提交」。 |
 | 每周周报 | `/reports` | 师生 | 学生每周交 Markdown 周报（可编辑/预览/历史只读），文字和图片在同一编辑区，可在光标位置插入图片并继续在图片后写文字；其他文件作为附件。撰写时右页可切换老师批注与老师编辑的周报示例，左页浅色提示固定为系统原始模版。老师按周看全班 已交/未交/逾期/已飞升、点评；进度看板可翻转查看个人、逐周和总体上交率。基础节点完成度达 100% 的学生从完成所在周起免交，不计入应交、已交或提交率分母；历史周按当时的免交区间统计 |
 | 问答点评 | `/qa` | 师生 | 类小红书信息流：任何人发帖、全员可见、任何人可回复 |
-| 每日公告 | `/announcements` | 师生（发布仅老师） | 软木墙 + 便签，老师发布/删除并可添加附件；点击便签查看全文与下载附件 |
+| 每日公告 | `/announcements` | 师生（发布、修改、删除仅老师） | 软木墙 + 便签，老师可发布、修改、删除公告及管理附件；点击便签查看全文，下载附件时显示进度 |
 | 常用链接 | `/links` | 师生（维护仅老师） | 老师维护的外链按钮，新窗口打开 |
 | 消息中心 | `/messages` | 师生 | 老师催办发给学生的定向消息；学生看收件箱，Banner 铃铛有未读角标 |
-| 账号管理 | `/accounts` | **仅老师** | 增删改、重置密码；学生访问会被重定向到 `/thesis`。**不在主导航**，入口是 Banner 右上角的太阳 ☀ |
+| 账号管理 | `/accounts` | **仅老师** | 增删改、重置密码；学生访问会被重定向到 `/progress`。**不在主导航**，入口是 Banner 右上角的太阳 ☀ |
 
-登录后按角色分流：老师 → `/progress`，学生 → `/thesis`
-（常量 `TEACHER_HOME` / `STUDENT_HOME` 在 `App.jsx` 顶部，`<Home>` 用它俩分流）。
+登录后师生统一进入 `/progress`（`App.jsx` 中的 `HOME`）。
 
 周报与公告的附件存于 `GM_UPLOAD_DIR`，元数据分别在 `ReportAttachment`、`AnnouncementAttachment` 表里。每份周报或公告最多 10 个附件，每个不超过 20 MB；论文往返每次上传的单个附件也不超过 20 MB。常见栅格图片在周报正文的插入位置显示。周报附件只有本人和老师能读取，公告附件供所有已登录用户下载。老师编辑的周报示例存于 `Setting` 表，空库默认值由 `routers/reports.py` 提供；左侧暗色提示始终使用前端内置的原始模版。修改后端接口后需要重启 5183 服务，仅重新构建前端会让新接口返回 405。
 
@@ -185,7 +184,7 @@ backend/
 
 frontend/src/
   main.jsx          # BrowserRouter > ToastProvider > AuthProvider > MessagesProvider > App
-  App.jsx           # 全部路由 + 角色守卫（Guard / TeacherOnly / Home）+ TEACHER_HOME/STUDENT_HOME
+  App.jsx           # 全部路由 + 角色守卫（Guard / TeacherOnly / Home）+ HOME
   api.js            # fetch 封装：自动带 JWT、统一错误文案、401/403 处理
   auth.jsx          # AuthContext：user / loading / login / logout
   toast.jsx         # 全局 Toast：useToast()('msg','success'|'error'|'info')
@@ -504,6 +503,7 @@ ADDED_COLUMNS = {
 | POST | `/messages/read` | 登录 | 把我收到的全部标为已读 |
 | GET/POST/DELETE | `/questions[/{id}]`，POST `/questions/{id}/replies` | 登录 | 问答；删除限本人或老师 |
 | GET/POST/DELETE | `/announcements[/{id}]` | GET 登录；写 老师 | 公告 |
+| PUT | `/announcements/{id}/with-attachments` | 老师 | 修改标题、内容及附件；multipart 字段为 `title`、`content`、重复的 `keep_attachment_ids` 和新增的 `files` |
 | GET/POST/DELETE | `/links[/{id}]` | GET 登录；写 老师 | 链接 |
 
 交互式文档：http://localhost:5183/docs （设了 `GM_DISABLE_DOCS=1` 就没有这一页）

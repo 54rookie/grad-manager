@@ -1,0 +1,296 @@
+<svg id="af-status-ascension" style="display:block;width:100%;height:auto;overflow:visible" viewBox="0 0 240 280" xmlns="http://www.w3.org/2000/svg" data-page-node-id="baEhnJoAAlSSwQGSPzTyhf">
+    <defs><style>/* ===== 法阵特效（新增，前缀 af-mx- 防冲突） ===== */
+#af-mx-fx{pointer-events:none}
+/* 法阵整体缩放包装：出现=展开，消失=收回 */
+.af-mx-grow{transform-box:fill-box;transform-origin:center;transform:scale(.04);opacity:0;
+  transition:transform .95s cubic-bezier(.18,.75,.25,1),opacity .45s ease-out}
+#af-mx-fx.af-mx-on .af-mx-grow{transform:scale(1);opacity:1}
+#af-mx-fx.af-mx-closing .af-mx-grow{transform:scale(.02);opacity:0;
+  transition:transform 1.3s cubic-bezier(.55,.06,.68,.19),opacity 1.3s ease-in-out}
+/* 光幕容器：悬停淡入，离开时整体渐隐（内部光丝继续上升，自然消失） */
+.af-mx-curtain{opacity:0;transition:opacity 1.2s ease}
+#af-mx-fx.af-mx-on .af-mx-curtain{opacity:1;transition:opacity .9s ease .3s}
+#af-mx-fx.af-mx-closing .af-mx-curtain{opacity:0;transition:opacity 1.5s ease .1s}
+/* 圆环旋转：不同速度 / 方向 */
+.af-mx-spin-a{transform-box:fill-box;transform-origin:center;animation:af-mx-spin 36s linear infinite}
+.af-mx-spin-b{transform-box:fill-box;transform-origin:center;animation:af-mx-spinr 24s linear infinite}
+.af-mx-spin-c{transform-box:fill-box;transform-origin:center;animation:af-mx-spin 15s linear infinite}
+.af-mx-spin-d{transform-box:fill-box;transform-origin:center;animation:af-mx-spinr 20s linear infinite}
+@keyframes af-mx-spin{to{transform:rotate(360deg)}}
+@keyframes af-mx-spinr{to{transform:rotate(-360deg)}}
+/* 三层环形尘埃：每层沿椭圆边缘旋转，同时向上漂浮并渐隐。 */
+.af-mx-surge{animation:af-mx-surge 3.8s ease-out infinite}
+.af-mx-surge:nth-child(2){animation-delay:-1.27s}
+.af-mx-surge:nth-child(3){animation-delay:-2.54s}
+.af-mx-vortex{transform-box:fill-box;transform-origin:center;animation:af-mx-spin 8.5s linear infinite}
+.af-mx-surge:nth-child(2) .af-mx-vortex{animation-duration:9.6s;animation-delay:-3s}
+.af-mx-surge:nth-child(3) .af-mx-vortex{animation-duration:7.8s;animation-delay:-5s}
+.af-mx-dust-line{stroke-dasharray:10 21 2 18 4 38;animation:af-mx-dust-flow 4.6s linear infinite}
+@keyframes af-mx-surge{0%{transform:translateY(7px);opacity:0}14%{opacity:.96}48%{opacity:.9}76%{opacity:.5}100%{transform:translateY(-82px);opacity:0}}
+@keyframes af-mx-dust-flow{to{stroke-dashoffset:-93}}
+</style></defs>
+    <defs data-page-node-id="VNqT7MJh8LwuXif69bl1vR">
+      <linearGradient id="af-a-skin" x1="0" y1="0" x2="0" y2="1" data-page-node-id="DpneOny6fLZIOEs3uL4XdE">
+        <stop offset="0" stop-color="#ffeedd" data-page-node-id="TInSxSFiL2sOpHdRpDzkBm"/><stop offset="1" stop-color="#ffdcbc" data-page-node-id="GZ9OqfZYnOFuy9o80ndxkj"/>
+      </linearGradient>
+      <linearGradient id="af-a-robe" x1="0" y1="0" x2="0" y2="1" data-page-node-id="lHAbSDH2VsFmb53tgCDqLN">
+        <stop offset="0" stop-color="#fffdf4" data-page-node-id="Fckb4TSqTRJ4eAlGJZUuR8"/><stop offset="1" stop-color="#f0dfae" data-page-node-id="fNIjIKFeyZZGCiQdeB9wvr"/>
+      </linearGradient>
+      <radialGradient id="af-a-glow" cx=".5" cy=".5" r=".5" data-page-node-id="Tm6ZSMBG5FlRejNRBrHjch">
+        <stop offset="0" stop-color="#ffdf8e" stop-opacity=".9" data-page-node-id="Y9MJkJnTouv5pNubcN9W9N"/>
+        <stop offset="1" stop-color="#ffdf8e" stop-opacity="0" data-page-node-id="FLxu3Al5k0tVP3CF6i1S6Z"/>
+      </radialGradient>
+      <linearGradient id="af-a-pillar" x1="0" y1="0" x2="0" y2="1" data-page-node-id="Jp40jTzgOyKdcX0fEmAMh9">
+        <stop offset="0" stop-color="#fff3cf" stop-opacity=".85" data-page-node-id="eE7jPkBNA5EjpXeBka7JZY"/>
+        <stop offset="1" stop-color="#fff3cf" stop-opacity="0" data-page-node-id="SRiyYVSK16xohJK5BkBUpD"/>
+      </linearGradient>
+      <style>
+        .af-a-bob{animation:af-a-bob 4s ease-in-out infinite}
+        @keyframes af-a-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+        .af-a-ring1{transform-box:fill-box;transform-origin:center;animation:af-a-spin 22s linear infinite}
+        .af-a-ring2{transform-box:fill-box;transform-origin:center;animation:af-a-spinr 16s linear infinite}
+        .af-a-ring3{transform-box:fill-box;transform-origin:center;animation:af-a-spin 30s linear infinite}
+        @keyframes af-a-spin{to{transform:rotate(360deg)}}
+        @keyframes af-a-spinr{to{transform:rotate(-360deg)}}
+        .af-a-breathe{transform-box:fill-box;transform-origin:center;animation:af-a-breathe 3.6s ease-in-out infinite}
+        @keyframes af-a-breathe{0%,100%{opacity:.65;transform:scale(1)}50%{opacity:1;transform:scale(1.07)}}
+        .af-a-ribbon-l{transform-box:fill-box;transform-origin:top right;animation:af-a-rib 3s ease-in-out infinite}
+        .af-a-ribbon-r{transform-box:fill-box;transform-origin:top left;animation:af-a-rib 3s ease-in-out infinite .5s}
+        @keyframes af-a-rib{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(4deg)}}
+        .af-a-cloud{animation:af-a-cloud 5s ease-in-out infinite alternate}
+        @keyframes af-a-cloud{from{transform:translateX(-5px)}to{transform:translateX(5px)}}
+        .af-a-rise1{animation:af-a-rise 3.6s linear infinite}
+        .af-a-rise2{animation:af-a-rise 3.6s linear infinite 1.2s}
+        .af-a-rise3{animation:af-a-rise 3.6s linear infinite 2.4s}
+        @keyframes af-a-rise{0%{transform:translateY(0);opacity:0}15%{opacity:1}85%{opacity:1}100%{transform:translateY(-150px);opacity:0}}
+        .af-a-phoenix{stroke-dasharray:14 10;animation:af-a-flow 2.6s linear infinite}
+        @keyframes af-a-flow{to{stroke-dashoffset:-48}}
+        .af-a-pillar{animation:af-a-shimmer 4s ease-in-out infinite}
+        @keyframes af-a-shimmer{0%,100%{opacity:.55}50%{opacity:.9}}
+      </style>
+    </defs>
+
+    <!-- ===== 法阵专用 defs（新增） ===== -->
+    <defs>
+      <radialGradient id="af-mx-rg" cx=".5" cy=".5" r=".5">
+        <stop offset="0" stop-color="#ffdf8e" stop-opacity=".5"/>
+        <stop offset=".65" stop-color="#ffdf8e" stop-opacity=".18"/>
+        <stop offset="1" stop-color="#ffdf8e" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="af-mx-ng" cx=".5" cy=".5" r=".5">
+        <stop offset="0" stop-color="#fffdf0"/>
+        <stop offset=".55" stop-color="#ffe9ad"/>
+        <stop offset="1" stop-color="#f0b429" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="af-mx-metal" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#ae741d"/><stop offset=".32" stop-color="#fff0bd"/>
+        <stop offset=".68" stop-color="#daa640"/><stop offset="1" stop-color="#f6da8f"/>
+      </linearGradient>
+      <filter id="af-mx-dust-glow" x="-130%" y="-130%" width="360%" height="360%">
+        <feGaussianBlur stdDeviation="1.35" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <g id="af-mx-dust-ring" fill="none">
+        <circle r="154" stroke="#b77718" stroke-width="1.3" stroke-dasharray="1 13 2 21 1 30" opacity=".7"/>
+        <circle class="af-mx-dust-line" r="150" stroke="#d89424" stroke-width="1.8" stroke-linecap="round" opacity=".96"/>
+        <path d="M-149-28 A152 152 0 0 1-121-92 M84-127 A152 152 0 0 1 140-59 M135 72 A152 152 0 0 1 75 132" stroke="#fff3c9" stroke-width="1.3" stroke-linecap="round" opacity=".82"/>
+        <g fill="#e3a93b" filter="url(#af-mx-dust-glow)">
+          <circle cx="150" cy="-25" r="1.7"/><circle cx="122" cy="-92" r="1.15"/>
+          <circle cx="55" cy="-143" r="1.5"/><circle cx="-36" cy="-150" r="1.3"/>
+          <circle cx="-112" cy="-104" r="1.8"/><circle cx="-151" cy="-22" r="1.15"/>
+          <circle cx="-142" cy="60" r="1.6"/><circle cx="-79" cy="132" r="1.15"/>
+          <circle cx="3" cy="153" r="1.7"/><circle cx="88" cy="125" r="1.15"/>
+          <circle cx="143" cy="56" r="1.6"/>
+        </g>
+        <g fill="#fff7d8" filter="url(#af-mx-dust-glow)">
+          <circle cx="135" cy="-74" r="2.1"/><circle cx="-6" cy="-154" r="1.8"/>
+          <circle cx="-147" cy="44" r="1.9"/><circle cx="-47" cy="146" r="1.7"/>
+          <circle cx="119" cy="98" r="1.9"/>
+        </g>
+      </g>
+      <g id="af-mx-outer-glyph" fill="none" stroke-linejoin="miter">
+        <path d="M-11-139 L-6-144 H6 L11-139" stroke="#d29d38" stroke-width="1.1"/>
+        <path d="M-4-148 L0-153 L4-148" stroke="#fff1bb" stroke-width=".85"/>
+        <path d="M0-137 V-133" stroke="#b47c27" stroke-width=".85"/>
+      </g>
+    </defs>
+
+    <rect class="af-a-pillar" x="78" y="0" width="84" height="240" fill="url(#af-a-pillar)" data-page-node-id="cwNDGwi5PWiUByAdvqYjOz"/>
+    <circle class="af-a-breathe" cx="120" cy="118" r="100" fill="url(#af-a-glow)" data-page-node-id="oCEi9WO8J8tW0BfCLptb6s"/>
+
+    <g id="aura" data-page-node-id="s1yRyhSUxBB2WUhXT1nCSP">
+      <g class="af-a-ring1" data-page-node-id="EwxzuqBku40kSKk0pb5ceP">
+        <circle cx="120" cy="112" r="62" fill="none" stroke="#e8b93e" stroke-width="3" stroke-dasharray="20 12" opacity=".9" data-page-node-id="mWYf1hb1qjwUX4ACkiXtt7"/>
+      </g>
+      <g class="af-a-ring2" data-page-node-id="1VsoqWSnfD8iEhJGDm1zEF">
+        <circle cx="120" cy="112" r="76" fill="none" stroke="#cf9fe0" stroke-width="2" stroke-dasharray="3 9" opacity=".8" data-page-node-id="YHBaGetI8FGTURf9AbfCKc"/>
+        <circle cx="120" cy="36" r="3" fill="#e8b93e" data-page-node-id="5S9hTxK7pV9TUjtbGCDqEL"/>
+        <circle cx="120" cy="188" r="3" fill="#e8b93e" data-page-node-id="3irHfejsCWoFHcs8ND0G5k"/>
+      </g>
+      <g class="af-a-ring3" data-page-node-id="GET6fdlwWyEPJ7iLy4O2Gh">
+        <circle cx="120" cy="112" r="90" fill="none" stroke="#e8c25f" stroke-width="1.5" opacity=".55" data-page-node-id="Elmzl4xFyvKrC4FnYuQiBu"/>
+        <path d="M120 18 L122.5 24 L129 26.5 L122.5 29 L120 35 L117.5 29 L111 26.5 L117.5 24 Z" fill="#eabf4f" data-page-node-id="OnwBl0AGD76bhSjYMeH97T"/>
+        <path d="M120 189 L122.5 195 L129 197.5 L122.5 200 L120 206 L117.5 200 L111 197.5 L117.5 195 Z" fill="#eabf4f" data-page-node-id="Axl8jVucO2eqHGyWFpSvit"/>
+      </g>
+    </g>
+
+    <path class="af-a-phoenix" d="M30 210 Q64 190 54 152 Q48 118 84 106" fill="none" stroke="#e8b93e" stroke-width="4" stroke-linecap="round" opacity=".65" data-page-node-id="cSfJTVuVsujVAlOqZnwkr8"/>
+    <path class="af-a-phoenix" d="M210 210 Q176 190 186 152 Q192 118 156 106" fill="none" stroke="#cf9fe0" stroke-width="4" stroke-linecap="round" opacity=".55" data-page-node-id="x6PjnIRUxtV30DeVf8ntoj"/>
+
+    <g id="particles" fill="#f0b429" data-page-node-id="17D6dQnlUN1PfjxefK7Ji0">
+      <g class="af-a-rise1" data-page-node-id="WcLFPZGozhcmMOG6JP4Z98"><circle cx="88" cy="220" r="2.5" data-page-node-id="XaIdaz91mRk9c32APzYRZC"/><path d="M150 226 L151.5 230 L156 231.5 L151.5 233 L150 237 L148.5 233 L144 231.5 L148.5 230 Z" data-page-node-id="QGhHml5CIyDELFumpoQnnj"/></g>
+      <g class="af-a-rise2" data-page-node-id="ScScTi0V2B74b6SKOI6BWf"><circle cx="160" cy="215" r="2" data-page-node-id="a1zdvM2rmMOBiyFXxBYuzR"/><circle cx="70" cy="225" r="1.8" data-page-node-id="wOTVZBPgZfZylAMQwdDGtP"/></g>
+      <g class="af-a-rise3" data-page-node-id="dBEbGLINGtDeDFdDmRj6t3"><path d="M100 228 L101.3 231.7 L105 233 L101.3 234.3 L100 238 L98.7 234.3 L95 233 L98.7 231.7 Z" data-page-node-id="IvDlFDLMLdhCgPX8DJrJlH"/><circle cx="132" cy="222" r="2.2" data-page-node-id="5DnggFT9PHz6scQ2WhUAFP"/></g>
+    </g>
+
+    <g id="weapon" fill="#fff6da" stroke="#c9982a" stroke-width="1.5" data-page-node-id="TmDDzaVbNSt5D7l9toJ108">
+      <g transform="translate(38,120) rotate(-28)" data-page-node-id="yNUSdEARiMZC9j0uCGHmJ1"><polygon points="-3,6 3,6 1.5,-24 0,-29 -1.5,-24" data-page-node-id="byCxeuA8LIEgevVu2ldbXz"/><rect x="-7" y="6" width="14" height="4" rx="2" data-page-node-id="thk5Fndj19MRwuWAoZdeLH"/></g>
+      <g transform="translate(52,74) rotate(-12)" data-page-node-id="6OQwgqF215EXSFYR8lm61o"><polygon points="-3,6 3,6 1.5,-24 0,-29 -1.5,-24" data-page-node-id="URGikzZt0cA4QY325mxqpJ"/><rect x="-7" y="6" width="14" height="4" rx="2" data-page-node-id="dZPGhXAizBG6w1BjSgHAVX"/></g>
+      <g transform="translate(202,120) rotate(28)" data-page-node-id="CYUsA0vKHM8W8Mc9mu6TIe"><polygon points="-3,6 3,6 1.5,-24 0,-29 -1.5,-24" data-page-node-id="7VY4gK9EK4d49aUmcQj5zG"/><rect x="-7" y="6" width="14" height="4" rx="2" data-page-node-id="RZDfYeh1Y97mUzvUSyMBtP"/></g>
+      <g transform="translate(188,74) rotate(12)" data-page-node-id="fvq8Gz3B5qyiPWyM7uzqgz"><polygon points="-3,6 3,6 1.5,-24 0,-29 -1.5,-24" data-page-node-id="3cyUiiv9NqcwGp9oYyFrGa"/><rect x="-7" y="6" width="14" height="4" rx="2" data-page-node-id="k2eeIGwC4KByJ93aH1vuGR"/></g>
+    </g>
+
+    <g id="cloud" class="af-a-cloud" fill="#fffaf0" data-page-node-id="pgrdgly7lBRa54JgSfZgRL">
+      <ellipse cx="82" cy="240" rx="24" ry="12" data-page-node-id="KihOqvnauANA15QWRXFLDe"/>
+      <ellipse cx="120" cy="246" rx="34" ry="14" data-page-node-id="S5FnQ6YUEdYYz3O1U4LzRE"/>
+      <ellipse cx="158" cy="240" rx="24" ry="12" data-page-node-id="QbWoOX9dRIHMfhPso65kmc"/>
+      <ellipse cx="120" cy="238" rx="52" ry="12" opacity=".9" data-page-node-id="xnMRP9Mho37ks4btg0veGA"/>
+      <ellipse cx="60" cy="248" rx="14" ry="7" opacity=".85" data-page-node-id="YoyiPfKIz5g3KueW95GWoM"/>
+      <ellipse cx="182" cy="248" rx="14" ry="7" opacity=".85" data-page-node-id="C2Ly2Rb9AU2z5DXnGWPI2o"/>
+    </g>
+
+    <!-- ===== 六芒星法阵 + 后部光幕（新增，位于人物之下） ===== -->
+    <g id="af-mx-fx">
+      <!-- 三股错峰升腾的金色尘埃旋流；细弧和光点沿地面椭圆同向绕行。 -->
+      <g class="af-mx-curtain">
+        <g class="af-mx-surge">
+          <g transform="translate(120 237) scale(1 .32)">
+            <g class="af-mx-vortex"><use href="#af-mx-dust-ring"/></g>
+          </g>
+        </g>
+        <g class="af-mx-surge">
+          <g transform="translate(120 237) scale(.94 .31)">
+            <g class="af-mx-vortex"><use href="#af-mx-dust-ring"/></g>
+          </g>
+        </g>
+        <g class="af-mx-surge">
+          <g transform="translate(120 237) scale(.87 .29)">
+            <g class="af-mx-vortex"><use href="#af-mx-dust-ring"/></g>
+          </g>
+        </g>
+      </g>
+      <!-- 法阵主体：脚下中心放大，水平透视压扁，多环差速旋转 -->
+      <g class="af-mx-grow">
+        <g transform="translate(120 237)">
+          <g transform="scale(1 .34)">
+            <circle r="166" fill="url(#af-mx-rg)"/>
+            <g class="af-mx-spin-a">
+              <!-- 外缘采用留有呼吸间距的多层细环和八方几何符纹。 -->
+              <circle r="158" fill="none" stroke="url(#af-mx-metal)" stroke-width="1.05" opacity=".95"/>
+              <circle r="154" fill="none" stroke="#fff0b8" stroke-width=".55" stroke-dasharray="49 8 2 19" opacity=".8"/>
+              <circle r="148" fill="none" stroke="#bd832d" stroke-width="1.15" stroke-dasharray="30 8 5 24" opacity=".85"/>
+              <circle r="136" fill="none" stroke="#d9aa54" stroke-width=".7" opacity=".58"/>
+              <g stroke="#f6dc93" stroke-width="1" stroke-linecap="round" opacity=".9">
+                <g transform="rotate(0)"><path d="M0-158 V-151"/></g>
+                <g transform="rotate(30)"><path d="M0-158 V-151"/></g>
+                <g transform="rotate(60)"><path d="M0-158 V-151"/></g>
+                <g transform="rotate(90)"><path d="M0-158 V-151"/></g>
+                <g transform="rotate(120)"><path d="M0-158 V-151"/></g>
+                <g transform="rotate(150)"><path d="M0-158 V-151"/></g>
+                <g transform="rotate(180)"><path d="M0-158 V-151"/></g>
+                <g transform="rotate(210)"><path d="M0-158 V-151"/></g>
+                <g transform="rotate(240)"><path d="M0-158 V-151"/></g>
+                <g transform="rotate(270)"><path d="M0-158 V-151"/></g>
+                <g transform="rotate(300)"><path d="M0-158 V-151"/></g>
+                <g transform="rotate(330)"><path d="M0-158 V-151"/></g>
+              </g>
+              <use href="#af-mx-outer-glyph" transform="rotate(0)"/>
+              <use href="#af-mx-outer-glyph" transform="rotate(45)"/>
+              <use href="#af-mx-outer-glyph" transform="rotate(90)"/>
+              <use href="#af-mx-outer-glyph" transform="rotate(135)"/>
+              <use href="#af-mx-outer-glyph" transform="rotate(180)"/>
+              <use href="#af-mx-outer-glyph" transform="rotate(225)"/>
+              <use href="#af-mx-outer-glyph" transform="rotate(270)"/>
+              <use href="#af-mx-outer-glyph" transform="rotate(315)"/>
+              <g fill="#fff4c7" filter="url(#af-mx-dust-glow)">
+                <circle cx="0" cy="-158" r="2.25"/><circle cx="158" cy="0" r="2.25"/>
+                <circle cx="0" cy="158" r="2.25"/><circle cx="-158" cy="0" r="2.25"/>
+              </g>
+            </g>
+            <g class="af-mx-spin-b">
+              <polygon points="0,-112 97,56 -97,56" fill="#f0cf7a" fill-opacity=".07" stroke="#e8b93e" stroke-width="2" stroke-linejoin="round"/>
+              <polygon points="0,112 -97,-56 97,-56" fill="#f0cf7a" fill-opacity=".07" stroke="#e8b93e" stroke-width="2" stroke-linejoin="round"/>
+              <g fill="url(#af-mx-ng)">
+                <circle cx="0" cy="-112" r="6"/>
+                <circle cx="97" cy="-56" r="6"/>
+                <circle cx="97" cy="56" r="6"/>
+                <circle cx="0" cy="112" r="6"/>
+                <circle cx="-97" cy="56" r="6"/>
+                <circle cx="-97" cy="-56" r="6"/>
+              </g>
+            </g>
+            <g class="af-mx-spin-c">
+              <circle r="82" fill="none" stroke="#f0cf7a" stroke-width="1.5" stroke-dasharray="16 9" opacity=".85"/>
+            </g>
+            <g class="af-mx-spin-d">
+              <circle r="30" fill="none" stroke="#e8b93e" stroke-width="1" stroke-dasharray="3 6" opacity=".8"/>
+              <g fill="#eabf4f">
+                <g transform="rotate(0)"><path d="M0 -35 L2.5 -30 L0 -25 L-2.5 -30 Z"/></g>
+                <g transform="rotate(90)"><path d="M0 -35 L2.5 -30 L0 -25 L-2.5 -30 Z"/></g>
+                <g transform="rotate(180)"><path d="M0 -35 L2.5 -30 L0 -25 L-2.5 -30 Z"/></g>
+                <g transform="rotate(270)"><path d="M0 -35 L2.5 -30 L0 -25 L-2.5 -30 Z"/></g>
+              </g>
+            </g>
+            <circle r="7" fill="url(#af-mx-ng)"/>
+          </g>
+        </g>
+      </g>
+    </g>
+
+    <g class="af-a-bob" data-page-node-id="yseLesVlBAMTmT1C6D3AGR">
+      <g id="body" data-page-node-id="lC5hb4pssj8Aq9KEjFCyUY">
+        <path d="M92 128 Q58 118 36 128 Q42 146 66 148 Q82 146 94 142 Z" fill="url(#af-a-robe)" data-page-node-id="MXXO0Wcy4yyrwWU1KQIqWJ"/>
+        <path d="M92 128 Q58 118 36 128" fill="none" stroke="#d9a030" stroke-width="2.5" data-page-node-id="YmtjNYS3KaYFh1ytKGTaCU"/>
+        <path d="M148 128 Q182 118 204 128 Q198 146 174 148 Q158 146 146 142 Z" fill="url(#af-a-robe)" data-page-node-id="RpuXYVwAjhBVO4Ceg8EFXJ"/>
+        <path d="M148 128 Q182 118 204 128" fill="none" stroke="#d9a030" stroke-width="2.5" data-page-node-id="qbVXBgIQLeCf13f65NKQAD"/>
+        <circle cx="40" cy="134" r="7.5" fill="url(#af-a-skin)" data-page-node-id="eyLlV42Di1inAEHbjp1DdW"/>
+        <circle cx="200" cy="134" r="7.5" fill="url(#af-a-skin)" data-page-node-id="TI10Jjim12RABkannnwBcF"/>
+        <path class="af-a-ribbon-l" d="M44 140 Q60 180 48 214 Q66 196 62 162" fill="none" stroke="#d9aee8" stroke-width="7" stroke-linecap="round" opacity=".9" data-page-node-id="xXWdvTis7FVlerwqogyhfP"/>
+        <path class="af-a-ribbon-r" d="M196 140 Q180 180 192 214 Q174 196 178 162" fill="none" stroke="#d9aee8" stroke-width="7" stroke-linecap="round" opacity=".9" data-page-node-id="OvSAqpfF8embX23oVkJzVA"/>
+        <path d="M88 124 Q120 112 152 124 Q164 172 150 206 Q120 220 90 206 Q76 172 88 124 Z" fill="url(#af-a-robe)" data-page-node-id="YIrAyP0AiBxegFSHd9C4Lv"/>
+        <path d="M92 196 Q120 210 148 196" fill="none" stroke="#d9a030" stroke-width="3" data-page-node-id="ZYEPGOlbToDDuLhaewSG88"/>
+        <path d="M110 118 L124 142 M130 118 L116 142" stroke="#d9a030" stroke-width="2.5" fill="none" stroke-linecap="round" data-page-node-id="fKbDETo5aAXaZu3j07EGoA"/>
+        <rect x="92" y="150" width="56" height="12" rx="6" fill="#b494e0" data-page-node-id="jeAAVJufr8I7l7qZY4Y5Vg"/>
+        <rect x="112" y="150" width="16" height="12" fill="#d9a030" data-page-node-id="2g76fig7vSJbXvYRZXYENT"/>
+        <circle class="af-a-breathe" cx="120" cy="168" r="12" fill="url(#af-a-glow)" data-page-node-id="dpcGuXFdmZaaCvrMLo9NQl"/>
+        <path d="M120 162 L123 168 L120 174 L117 168 Z" fill="#d9a030" data-page-node-id="zUq2MZW3AChXXCXIxG0NoM"/>
+        <path d="M102 178 L103.5 182 L108 183.5 L103.5 185 L102 189 L100.5 185 L96 183.5 L100.5 182 Z" fill="#d9a030" data-page-node-id="EWDXJvgmHPNUxxWA0MeRFR"/>
+        <path d="M139 174 L140.3 177.7 L144 179 L140.3 180.3 L139 184 L137.7 180.3 L134 179 L137.7 177.7 Z" fill="#d9a030" data-page-node-id="nwTSiaJ8kcuHEzGMykH0Kv"/>
+      </g>
+
+      <g id="head" data-page-node-id="8WshA0rDgynjuZtdKTI6tV">
+        <circle cx="76" cy="90" r="8" fill="url(#af-a-skin)" data-page-node-id="gx8IH2k3ACokLUvvL7PsBH"/>
+        <circle cx="164" cy="90" r="8" fill="url(#af-a-skin)" data-page-node-id="32mXLq62WTqiwqKHaQ5fai"/>
+        <circle cx="120" cy="86" r="42" fill="url(#af-a-skin)" data-page-node-id="c8swzgKXHFMaXvFcYVVnSo"/>
+        <path d="M82 96 Q90 120 120 126 Q150 120 158 96 Q150 116 120 120 Q90 116 82 96 Z" fill="#f5bd93" opacity=".35" data-page-node-id="3VdBV96WlOiQG76eYThClD"/>
+        <g id="hair" data-page-node-id="xURDClaBwWDwg2ncgwv7ri">
+          <path d="M80 84 Q82 128 68 158 Q86 148 92 118 Q90 96 92 82 Z" fill="#6a5a8a" data-page-node-id="2nVOh4cHqeQ7iECKs2ii4E"/>
+          <path d="M160 84 Q158 128 172 158 Q154 148 148 118 Q150 96 148 82 Z" fill="#6a5a8a" data-page-node-id="H4Fka4Pmtqvry71KaH3rNL"/>
+          <path d="M79 84 Q75 40 120 38 Q165 40 161 84 Q154 58 120 56 Q86 58 79 84 Z" fill="#6a5a8a" data-page-node-id="Y1EnWwwEYuBlvVxkSFApDq"/>
+          <path d="M104 40 L108 22 L116 32 L120 16 L124 32 L132 22 L136 40 Z" fill="#f0cf7a" data-page-node-id="D6BqCxdrYasGbphemU9AZ9"/>
+          <circle cx="120" cy="14" r="4" fill="#e88aa0" data-page-node-id="T5U4wJtluDjLckSmsh22nI"/>
+        </g>
+        <path d="M120 64 L123.5 70 L120 76 L116.5 70 Z" fill="#d9a030" data-page-node-id="NzEVaDfwyqIU7Je3uMr1OA"/>
+        <g id="face" data-page-node-id="8zH77KIrSp9UFrvnQUQIEg">
+          <path d="M94 78 Q103 73 112 78" fill="none" stroke="#6a5a8a" stroke-width="4" stroke-linecap="round" data-page-node-id="2iet5m2EnJbQqvmI7aebEu"/>
+          <path d="M128 78 Q137 73 146 78" fill="none" stroke="#6a5a8a" stroke-width="4" stroke-linecap="round" data-page-node-id="Ahf1muNC5oSsbwmanAzk1O"/>
+          <path d="M96 96 Q103 101 110 96" fill="none" stroke="#33363f" stroke-width="4" stroke-linecap="round" data-page-node-id="vzz43xopvjXsgHbkfp6Bdc"/>
+          <path d="M130 96 Q137 101 144 96" fill="none" stroke="#33363f" stroke-width="4" stroke-linecap="round" data-page-node-id="Ces1OqKNAjYcAQma3ZpvLC"/>
+          <path d="M111 114 Q120 119 129 114" fill="none" stroke="#454a56" stroke-width="3.5" stroke-linecap="round" data-page-node-id="SuEtoA3aVeUOXGgTcQmET3"/>
+          <ellipse cx="92" cy="105" rx="8" ry="4.5" fill="#ffab9c" opacity=".5" data-page-node-id="IscaMEPE7vS07UYYmmSdzC"/>
+          <ellipse cx="148" cy="105" rx="8" ry="4.5" fill="#ffab9c" opacity=".5" data-page-node-id="f28KPxq6NYSoEFOikBA5Bg"/>
+        </g>
+      </g>
+    </g>
+
+  </svg>

@@ -1,5 +1,29 @@
 const BASE = '/api'
 
+async function blobWithProgress(res, onProgress) {
+  const total = Number(res.headers.get('Content-Length')) || null
+  if (!res.body?.getReader) {
+    const blob = await res.blob()
+    onProgress({ loaded: blob.size, total })
+    return blob
+  }
+  const reader = res.body.getReader()
+  const chunks = []
+  let loaded = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      chunks.push(value)
+      loaded += value.byteLength
+      onProgress({ loaded, total })
+    }
+  } finally {
+    reader.releaseLock()
+  }
+  return new Blob(chunks, { type: res.headers.get('Content-Type') || 'application/octet-stream' })
+}
+
 // 注意：登录态存在 sessionStorage（每个标签页独立），
 // 这样同一浏览器可以同时开「老师」和「学生」两个页面互不干扰。
 export function getToken() {
@@ -64,7 +88,7 @@ async function request(path, options = {}) {
     } catch {}
     throw new Error(msg)
   }
-  return options.asBlob ? res.blob() : res.json()
+  return options.asBlob ? (options.onProgress ? blobWithProgress(res, options.onProgress) : res.blob()) : res.json()
 }
 
 export const api = {
@@ -78,8 +102,8 @@ export const api = {
   fileBlob: (p) => request(p, { asBlob: true }),
 }
 
-export async function downloadAttachment(path, name) {
-  const blob = await api.fileBlob(path)
+export async function downloadAttachment(path, name, onProgress) {
+  const blob = await request(path, { asBlob: true, onProgress })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -87,7 +111,7 @@ export async function downloadAttachment(path, name) {
   document.body.appendChild(a)
   a.click()
   a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  setTimeout(() => URL.revokeObjectURL(url), 30000)
 }
 
 export async function downloadFile(storedName, origName) {

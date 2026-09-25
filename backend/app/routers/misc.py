@@ -141,6 +141,51 @@ def create_announcement_with_attachments(title: str = Form(...), content: str = 
     return announcement_view(a, session)
 
 
+@router.put("/announcements/{aid}/with-attachments")
+def update_announcement_with_attachments(aid: int, title: str = Form(...), content: str = Form(...),
+                                         keep_attachment_ids: list[int] = Form(default=[]),
+                                         files: list[UploadFile] = File(default=[]),
+                                         session: Session = Depends(get_session),
+                                         teacher: User = Depends(require_teacher)):
+    a = session.get(Announcement, aid)
+    if not a:
+        raise HTTPException(404, "公告不存在")
+    if not title.strip() or not content.strip():
+        raise HTTPException(400, "标题和内容不能为空")
+    attachments = session.exec(select(AnnouncementAttachment).where(
+        AnnouncementAttachment.announcement_id == aid)).all()
+    existing_ids = {item.id for item in attachments}
+    kept_ids = set(keep_attachment_ids)
+    if len(kept_ids) != len(keep_attachment_ids) or not kept_ids <= existing_ids:
+        raise HTTPException(400, "保留的附件不属于这条公告")
+    if len(kept_ids) + len(files) > MAX_FILES:
+        raise HTTPException(400, f"每条公告最多 {MAX_FILES} 个附件")
+
+    saved = []
+    removed = [item for item in attachments if item.id not in kept_ids]
+    try:
+        for file in files:
+            saved.append(save_upload(file))
+        a.title = title.strip()
+        a.content = content.strip()
+        session.add(a)
+        for item in removed:
+            session.delete(item)
+        for stored, name, mime in saved:
+            session.add(AnnouncementAttachment(announcement_id=aid, stored_name=stored,
+                                               original_name=name, image_mime=mime))
+        session.commit()
+    except Exception:
+        session.rollback()
+        for stored, _, _ in saved:
+            delete_upload(stored)
+        raise
+    for item in removed:
+        delete_upload(item.stored_name)
+    session.refresh(a)
+    return announcement_view(a, session)
+
+
 @router.get("/announcements/attachments/{attachment_id}")
 def announcement_attachment(attachment_id: int, session: Session = Depends(get_session),
                             user: User = Depends(get_current_user)):

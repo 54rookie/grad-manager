@@ -1886,16 +1886,22 @@ textarea { resize: vertical; line-height: 1.8; }
 .pg-thesis .archive { min-height: 400px; }
 /* 中栏顶部：轮次总览圆点 + 学生提交入口（跟着往返流走，不放进右栏） */
 .pg-thesis .round-bar {
-  display: flex; flex-direction: column; gap: 4px;
-  /* 轮次切换器（[当前][1][2]… 那排圆点）在中间栏绝对居中 */
-  justify-content: center; align-items: center;
+  display: flex; gap: 16px;
+  justify-content: space-between; align-items: center;
   padding: 16px 20px; margin-bottom: 20px;
   background: var(--card); border: 1.5px solid var(--line); border-radius: 16px;
   box-shadow: var(--shadow);
 }
-.pg-thesis .round-bar .round-dots { margin-top: 0; justify-content: center; text-align: center; }
-.pg-thesis .round-bar .lh-actions { margin-top: 10px; justify-content: center; }
-.pg-thesis .round-bar .btn-send { margin-left: 0; }
+.pg-thesis .round-bar.teacher-rounds { justify-content: center; }
+.pg-thesis .round-bar .round-dots { margin-top: 0; min-width: 0; }
+.pg-thesis .round-bar .lh-actions { margin-top: 0; flex: none; }
+.pg-thesis .round-action { font: inherit; font-size: 12px; font-weight: 900; color: var(--ink-2); cursor: pointer;
+  background: #fff; border: 1.5px solid #e8d9bc; border-radius: 9px; padding: 7px 12px; box-shadow: 0 2px 0 #eee0c4;
+  white-space: nowrap; transition: transform .25s var(--spring), border-color .25s, color .25s; }
+.pg-thesis .round-action:hover { border-color: var(--sun); color: var(--amber); transform: translateY(-1px); }
+.pg-thesis .round-action:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; }
+.pg-thesis .round-action .pen { margin-right: 5px; }
+@media (max-width: 760px) { .pg-thesis .round-bar { flex-wrap: wrap; } }
 
 /* 右栏：学生信息（竖排手账卡，吸顶） */
 .pg-thesis .student-card {
@@ -2131,10 +2137,8 @@ textarea { resize: vertical; line-height: 1.8; }
 
 /* ---- 模块一：日历 + 大盘 ---- */
 .pg-report .desk { display: flex; gap: 26px; flex-wrap: wrap; margin-bottom: 42px; }
-.pg-report .calendar { position: relative; flex: 0 0 196px; background: var(--card); border: 1.5px solid var(--line);
-  border-radius: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: visible;
-  transition: transform .4s var(--spring), box-shadow .35s; }
-.pg-report .calendar:hover { transform: translateY(-5px) rotate(-1deg); box-shadow: var(--shadow-up); }
+.pg-report .calendar { position: relative; z-index: 5; flex: 0 0 196px; background: var(--card); border: 1.5px solid var(--line);
+  border-radius: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: visible; }
 .pg-report .cal-top { height: 34px; background: linear-gradient(135deg, var(--rose), var(--rose-deep)); position: relative;
   display: flex; align-items: center; justify-content: center; border-radius: 14px 14px 0 0; flex: none; }
 .pg-report .cal-top span { font-size: 11px; font-weight: 900; color: #fff; letter-spacing: 3px; }
@@ -2170,7 +2174,7 @@ textarea { resize: vertical; line-height: 1.8; }
 .pg-report .cal-term select { font-size: 11.5px; padding: 7px 28px 7px 12px; }
 .pg-report .cal-ascension { flex: 1; min-height: 260px; display: flex; flex-direction: column; align-items: center;
   justify-content: center; padding: 12px 4px 28px; text-align: center; }
-.pg-report .cal-ascension img { display: block; width: calc(100% + 72px); max-width: none; height: auto;
+.pg-report .cal-formation { display: block; width: calc(100% + 72px); max-width: none;
   filter: drop-shadow(0 6px 9px rgba(174, 122, 16, .12)); }
 .pg-report .cal-ascension strong { margin-top: -7px; font-size: 17px; line-height: 1.45; color: var(--ink); white-space: nowrap; }
 .pg-report .cal-ascension span { margin-top: 4px; font-size: 11px; line-height: 1.5; color: var(--ink-3); font-weight: 700; }
@@ -2668,6 +2672,13 @@ textarea { resize: vertical; line-height: 1.8; }
 .attachment-line { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; }
 .attachment-line span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .attachment-line button { flex: none; border: 1px solid #e8d9bc; border-radius: 6px; background: #fffaf0; color: var(--amber); padding: 4px 9px; cursor: pointer; }
+.attachment-line button:disabled { opacity: .65; cursor: wait; }
+.attachment-download { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--ink-2); }
+.attachment-download-track { flex: 1; height: 7px; overflow: hidden; border-radius: 99px; background: #eee1c7; }
+.attachment-download-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--sun), var(--rose)); transition: width .15s; }
+.attachment-download-track.indeterminate i { width: 35%; animation: pg-download-wait 1.1s ease-in-out infinite alternate; }
+.attachment-download small { min-width: 34px; font-size: 11px; text-align: right; }
+@keyframes pg-download-wait { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
 .pg-board .field input[type="text"]:focus, .pg-board .field textarea:focus { border-bottom-color: var(--sun); }
 .pg-board .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .pg-board .chip { padding: 5px 14px; font-size: 13px; letter-spacing: 1.5px; border-radius: 999px; cursor: pointer; user-select: none;
@@ -2734,9 +2745,7 @@ textarea { resize: vertical; line-height: 1.8; }
   }
 }
 
-/* ---- 鹈鹕骑行：两种挂法 ----
-   · ride-a：挂在 GlobalBanner 的 .pg-gb 里，骑 Banner 分隔虚线，随文档滚动
-   · ride-b：挂在进度看板 .chart 里，贴图表最上方那条虚线骑 */
+/* ---- 进度看板里的鹈鹕骑行 ---- */
 .pg-shell .ride {
   position: absolute;
   left: 0;
@@ -2758,24 +2767,6 @@ textarea { resize: vertical; line-height: 1.8; }
   50%    { transform: translateX(98vw) scaleX(-1); }
   99.99% { transform: translateX(-16vw) scaleX(-1); }
   100%   { transform: translateX(-16vw) scaleX(1); }
-}
-/* 最大的鹈鹕：贴 Banner 分隔虚线骑行（覆盖默认 top 百分比）
-   鹈鹕 SVG 高 = 宽×(390/486)，车轮切点距 SVG 顶 = 高×(373/390)，
-   top = 虚线Y - 宽×0.7675，让车轮切点正好压在虚线上 */
-/* 随文档滚动的两只：定位基准变成 .pg-shell（position: relative，高度=整页） */
-.pg-shell .ride-doc { position: absolute; }
-/* ride-a：挂在 GlobalBanner 的 .pg-gb 里，骑着 Banner 的分隔虚线。
-   ⚠ z-index 是相对 .pg-gb 那个层叠上下文算的，必须高过 Banner 里的内容
-   （bar-top=2 / 胶带=3 / 用户区=5），否则整只鹈鹕会被 Banner 盖住 —— 之前给 40
-   是误以为它在 .pg-gb 外面，实际仍然被压在 Banner 底下，完全看不见。 */
-.pg-gb .ride-a {
-  --w: 124px; --o: .5; --dur: 56s; --delay: -5s;
-  position: absolute; z-index: 6;
-  /* 车轮切点距 SVG 底 = 宽 × (0.8025 - 0.7675) = 宽 × 0.035。
-     所以整只下移 0.035×宽，车轮就正好压在 .day-banner 的最下边缘。
-     用 bottom 而非写死 top：Banner 高度随视口变化（180 / 200px）时依然贴合。 */
-  top: auto;
-  bottom: calc(var(--w, 124px) * -0.035);
 }
 /* ride-b：移进进度看板的 .chart，车轮压在图表最上方那条横向虚线上
    （即 .chart::before 的 top: 33%）。百分比 top 与伪元素的基准一致
@@ -2808,9 +2799,8 @@ textarea { resize: vertical; line-height: 1.8; }
 /* 旧版页面（问答 / 链接 / 账号管理）没有顶部内边距，补上让首框位置与新版页面一致 */
 .pg-shell .shell-main > .page { padding-top: 40px; }
 
-/* 窄屏：鹈鹕收起 */
+/* 窄屏：进度图上的鹈鹕收起 */
 @media (max-width: 920px) {
-  .pg-shell .ride-doc,
   .pg-progress .ride-chart { display: none; }
 }
 
@@ -2884,7 +2874,7 @@ textarea { resize: vertical; line-height: 1.8; }
 
 /* ============================================================
    ✦ 全局聚合 Banner（shimen-global-banner.html 原型 100% 还原）
-   作用域 .pg-gb —— 上层全局导航（品牌/菜单/用户）
+   作用域 .pg-gb —— 上层全局导航（修仙者/菜单/用户）
                  + 下层页面信息三插槽（大标题/小标题/组件位）
    注意：所有选择器加 .pg-gb 前缀；动画加 gb- 前缀避免冲突
    ============================================================ */
@@ -2906,7 +2896,7 @@ textarea { resize: vertical; line-height: 1.8; }
   --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
 
   position: relative;
-  z-index: 60; /* 高于鹈鹕骑行层(50)，避免被碾过 */
+  z-index: 60;
   width: 100%;
   /* 与下方内容宽度一致（内容 .page 最常见 1300px），居中并恢复圆角卡片 */
   max-width: 1300px;
@@ -3045,14 +3035,13 @@ textarea { resize: vertical; line-height: 1.8; }
   100% { opacity: 0; transform: translate(-66vw, 6px) scale(.9); }
 }
 
-/* ---- 单层：品牌（左，绝对定位）+ 标题（中，绝对居中），用户区绝对定位到右上角 ---- */
+/* ---- 标题居中，用户区绝对定位到右上角 ---- */
 .pg-gb .bar-top {
   position: relative; z-index: 2;
   display: flex; align-items: center; justify-content: center;
   padding: 24px 58px;
 }
-/* 标题组（插槽1+2）：bar-top 里唯一还在文档流内的元素，
-   由 justify-content: center 居中 → 左右两侧元素多宽都不影响它 */
+/* 标题组（插槽1+2）由 justify-content: center 居中。 */
 .pg-gb .slot-text {
   min-width: 0; max-width: 100%;
   /* 兜底：定住标题组高度（.slot-1 36px + .slot-2 的 10px 外边距与 ~17px 行高 = 63px），
@@ -3062,30 +3051,11 @@ textarea { resize: vertical; line-height: 1.8; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center;
 }
-/* 品牌：脱离文档流钉在左侧（宽度不再参与标题居中计算）。
-   top/bottom: 0 + align-items: center 让它随 bar-top 高度自适应垂直居中，
-   自身高度不计入 bar-top，标题不会被挤偏、Banner 总高也保持不变 */
-.pg-gb .brand {
-  position: absolute; left: 58px; top: 0; bottom: 0;
-  display: flex; align-items: center; gap: 11px;
-  text-decoration: none; flex-shrink: 0;
-}
-.pg-gb .brand-seal {
-  width: 38px; height: 38px; border-radius: 10px;
-  display: grid; place-items: center;
-  background: linear-gradient(140deg, var(--rose), #a85854);
-  color: #FFF6EA; font-family: var(--hand); font-size: 16px;
-  transform: rotate(-4deg);
-  box-shadow: 0 5px 12px -4px rgba(194, 110, 106, .55), inset 0 0 0 2px rgba(255, 246, 234, .3);
-  transition: transform .5s var(--ease-spring);
-}
-.pg-gb .brand:hover .brand-seal { transform: rotate(3deg) scale(1.07); }
-.pg-gb .brand-name {
-  font-family: var(--serif); font-size: 19px; font-weight: 700;
-  letter-spacing: 3px; color: var(--ink);
-}
-.pg-gb .brand-name em { font-style: normal; color: var(--rose); }
-.pg-gb .brand-sub { font-family: var(--hand); font-size: 11.5px; letter-spacing: 2px; color: var(--muted); }
+/* 修仙者独立于 overflow:hidden 的 Banner 纸张层，阵法可向外展开。 */
+.pg-gb .banner-formation { position: absolute; z-index: 4; top: 16px; left: 136px; width: 148px;
+  display: block; color: inherit; text-decoration: none; }
+.pg-gb .banner-formation > span { display: block; width: 100%; }
+.pg-gb .banner-formation:focus-visible { outline: 2px solid var(--gb-sun); outline-offset: 4px; border-radius: 12px; }
 /* 底部主导航：单行横向，不折行，放在 Banner 最下方 */
 .pg-gb .main-nav {
   position: relative; z-index: 2;
@@ -3379,22 +3349,15 @@ textarea { resize: vertical; line-height: 1.8; }
 .hselect-list-portal li.on::after { content: "✓"; font-size: 13px; }
 
 /* ---- 响应式 ---- */
-/* 断点从 940 提到 1080：三栏布局要求 视口 ≥ 标题宽 + 611px
-   （右侧用户区固定占 305px，左侧品牌约 200px，再加一点余量）。
-   原断点 940 太低——941~1000px 之间最长标题「研究生论文进度看板」会压到用户区上。
-   实测：1081px（三栏的第一档）标题与用户区仍有 64px 间隙。 */
+/* 窄屏时标题下移，避开修仙者和用户区。 */
 @media (max-width: 1080px) {
   .pg-gb { margin: 0 12px; }
-  /* 窄屏放不下「左品牌 / 中标题 / 右用户」三栏：标题让到第二行独立居中，
-     第一行留给品牌（左）与用户区（右）。
-     ⚠ 用户区在这里依然是绝对定位——它已经是 .day-banner 的同级，
-     改回 static 会掉到 Banner 卡片外面去。 */
+  /* 标题让到第二行；用户区保持在 .day-banner 外，避免下拉菜单被裁剪。 */
   .pg-gb .bar-top {
     flex-direction: column; align-items: center;
     gap: 10px; padding: 56px 20px 18px;   /* 上留白给第一行的品牌 / 用户区 */
   }
-  .pg-gb .brand { top: 14px; left: 20px; bottom: auto; }
-  .pg-gb .brand-sub { display: none; }    /* 窄屏只留「师门手账」 */
+  .pg-gb .banner-formation { top: 16px; left: 65px; width: 88px; }
   .pg-gb .user-zone { top: 14px; right: 70px; }
   .pg-gb .main-nav { order: 3; width: 100%; gap: 16px; }
   .pg-gb .bar-main { flex-direction: column; align-items: flex-start; padding: 20px 30px 26px; min-height: 0; }

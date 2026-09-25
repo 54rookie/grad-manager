@@ -8,6 +8,8 @@ import AttachmentList from '../AttachmentList'
 import ReportEditor from '../ReportEditor'
 import { isAscendedWeek } from '../reportStatus'
 import { waitForProgressSaves } from '../progressSave'
+import AscensionFormation from '../AscensionFormation'
+import OverdueFigure from '../OverdueFigure'
 
 function ReportsBannerBridge() {
   usePageBanner({
@@ -24,9 +26,11 @@ const AVATAR_COLORS = [
 const STATUS_FIGURES = {
   未交: '/report-status/status-qi.svg',
   已交: '/report-status/status-yuanying.svg',
-  逾期: '/report-status/status-overdue.svg',
   已飞升: '/report-status/status-ascension.svg',
 }
+const StatusFigure = ({ status }) => status === '逾期'
+  ? <OverdueFigure />
+  : <img className="report-student-figure" src={STATUS_FIGURES[status]} alt="" aria-hidden="true" />
 const DEFAULT_TEMPLATE = '## 本周进展\n- …\n\n## 遇到问题\n- …\n\n## 下周计划\n- …'
 const IMAGE_TOKEN = /!\[([^\]\n]*)\]\(attachment:(pending-[a-z0-9-]+|\d+)\)/g
 const isRasterImage = (file) => /^image\/(png|jpeg|gif|webp|bmp|avif)$/.test(file.type)
@@ -200,6 +204,7 @@ export default function Reports() {
   const [pendingFiles, setPendingFiles] = useState([])
   const [keptAttachments, setKeptAttachments] = useState([])
   const richEditor = useRef(null)
+  const calendarFormation = useRef(null)
   const boardShell = useRef(null)
   const boardFront = useRef(null)
   const boardBack = useRef(null)
@@ -330,7 +335,11 @@ export default function Reports() {
     report: null,
   }]), [mine, user, week, weeks.ascension_windows])
 
-  const cards = isTeacher ? items : myCard
+  // 新年级排在前面；同年级保留接口原有顺序，统计仍使用原始 items。
+  const cards = isTeacher ? [...items].sort((a, b) => {
+    const year = (item) => Number(String(item.grade_name || '').match(/\d{2,4}/)?.[0] || 0)
+    return year(b) - year(a)
+  }) : myCard
 
   /* 从进度看板弹窗点「周报打卡记录」跳过来时带着 ?studentId=..&week=..
      —— 先切到那一周，等该周数据回来后再自动翻开手账本。
@@ -584,7 +593,8 @@ export default function Reports() {
 
         {/* 模块一：撕页日历 + 提交大盘 */}
         <section className="desk">
-          <div className="calendar">
+          <div className="calendar" onMouseEnter={() => calendarFormation.current?.activate()}
+            onMouseLeave={() => calendarFormation.current?.deactivate()}>
             <div className="cal-top"><span>WEEKLY</span></div>
             <div className="cal-body">
               <div className="cal-week">{weekNoOf(week, weeks)}<small>周</small></div>
@@ -609,8 +619,8 @@ export default function Reports() {
               </div>
             </div>
             <div className="cal-ascension">
-              <img src="/report-status/status-ascension.svg" alt="飞升中的小人" />
-              <strong>快和我一起跳出三界之外</strong>
+              <AscensionFormation ref={calendarFormation} className="cal-formation" hoverSelf={false} />
+              <strong>快和我跳出三届之外 !</strong>
               <span>写完两篇论文即可飞升</span>
             </div>
           </div>
@@ -674,7 +684,7 @@ export default function Reports() {
                           title={`${s.week}（${weekRange(s.week)}）· ${s.status} · 点击查看该周周报`}
                           aria-label={`查看第 ${weeks.week_index?.[s.week] || weekNo(s.week)} 周周报，${s.status}`}
                           onClick={() => openWeekReport(s.week)}>
-                          <img className="report-student-figure" src={STATUS_FIGURES[s.status]} alt="" aria-hidden="true" />
+                          <StatusFigure status={s.status} />
                         </button>
                         <span className="report-student-name">W{weekNo(s.week)}</span>
                         <span className="report-student-status">{s.status}</span>
@@ -695,7 +705,7 @@ export default function Reports() {
                       title={`${it.student_name} · ${it.status}${it.report ? ' · 本周有周报' : ''}`}
                       aria-label={`查看${it.student_name}的周报，${it.status}`}
                       onClick={() => openStudent(it, false)}>
-                      <img className="report-student-figure" src={STATUS_FIGURES[it.status]} alt="" aria-hidden="true" />
+                      <StatusFigure status={it.status} />
                     </button>
                     <span className="report-student-name">{it.student_name}</span>
                     <span className="report-student-status">{it.status}</span>

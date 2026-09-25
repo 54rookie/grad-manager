@@ -304,7 +304,7 @@ export default function Thesis() {
             {cur && (
               <>
                 {/* 轮次总览 + 学生提交入口：操作的是这条往返流，所以留在中栏 */}
-                <div className="round-bar">
+                <div className={`round-bar${isTeacher ? ' teacher-rounds' : ''}`}>
                   <div className="round-dots">
                     <span className="rl">轮次</span>
                     <span className={`rd txt${roundView === 'latest' ? ' on' : ''}`} title="只看当前（最新）一轮"
@@ -327,11 +327,11 @@ export default function Thesis() {
                   {!isTeacher && (
                     <div className="lh-actions">
                       {pendingLatest ? (
-                        <button className="btn-send" style={{ marginLeft: 0 }} onClick={openEditSubmit}>
+                        <button className="round-action" onClick={openEditSubmit}>
                           <span className="pen">✎</span>修改本次提交（第 {latest.round_no} 轮）
                         </button>
                       ) : (
-                        <button className="btn-send" style={{ marginLeft: 0 }}
+                        <button className="round-action"
                           onClick={() => { setPop('submit'); setSubmitText(''); setSubmitFile(null) }}>
                           <span className="pen">📮</span>提交第 {rounds.length + 1} 轮
                         </button>

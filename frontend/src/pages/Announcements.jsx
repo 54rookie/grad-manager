@@ -72,6 +72,8 @@ export default function Announcements() {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [files, setFiles] = useState([])
+  const [editingNote, setEditingNote] = useState(null)
+  const [keptAttachments, setKeptAttachments] = useState([])
   const [selected, setSelected] = useState(null)
   const [tag, setTag] = useState('notice')
   const [color, setColor] = useState('c-cream')
@@ -111,29 +113,47 @@ export default function Announcements() {
     }, 520)
   }
 
+  const openComposer = (note = null) => {
+    const style = note ? styleOf(note) : null
+    setEditingNote(note)
+    setTitle(note?.title || '')
+    setBody(note?.content || '')
+    setFiles([])
+    setKeptAttachments(note?.attachments || [])
+    setTag(style?.tag || 'notice')
+    setColor(style?.color || 'c-cream')
+    setSelected(null)
+    setOpen(true)
+  }
+
   const publish = async () => {
     if (!title.trim() || !body.trim()) return toast('标题和内容都要写哦', 'error')
-    if (files.length > 10 || files.some((file) => file.size > 20 * 1024 * 1024)) return toast('最多 10 个附件，单个不超过 20 MB', 'error')
+    if (keptAttachments.length + files.length > 10 || files.some((file) => file.size > 20 * 1024 * 1024)) return toast('最多 10 个附件，单个不超过 20 MB', 'error')
     setSending(true)
     try {
       const form = new FormData()
       form.append('title', title.trim())
       form.append('content', body.trim())
+      keptAttachments.forEach((attachment) => form.append('keep_attachment_ids', String(attachment.id)))
       files.forEach((file) => form.append('files', file))
-      const created = await api.postForm('/announcements/with-attachments', form)
-      const map = { ...readStyles(), [created.id]: { __tag: tag, __color: color } }
+      const saved = editingNote
+        ? await api.putForm(`/announcements/${editingNote.id}/with-attachments`, form)
+        : await api.postForm('/announcements/with-attachments', form)
+      const map = { ...readStyles(), [saved.id]: { __tag: tag, __color: color } }
       writeStyles(map)
       setStyles(map)
       setOpen(false)
+      setEditingNote(null)
       setTitle('')
       setBody('')
       setFiles([])
+      setKeptAttachments([])
       setTag('notice')
       setColor('c-cream')
-      toast('便签已钉上公告板 📌', 'success')
+      toast(editingNote ? '公告已修改' : '便签已钉上公告板 📌', 'success')
       const list = await api.get('/announcements')
       setNotes(list.map((a) => ({ ...a, ...(map[a.id] || {}) })))
-      setTimeout(() => document.querySelector('.pg-board .note')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200)
+      if (!editingNote) setTimeout(() => document.querySelector('.pg-board .note')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200)
     } catch (e) { toast(e.message, 'error') } finally { setSending(false) }
   }
 
@@ -149,7 +169,7 @@ export default function Announcements() {
           <div className="board-frame-head">
             <span className="bfh-title">软木墙 · 共 {rendered.length} 张便签</span>
             {isTeacher && (
-              <button className="btn-publish" onClick={() => setOpen(true)}>
+              <button className="btn-publish" onClick={() => openComposer()}>
                 <span className="plus">＋</span>写张便签
               </button>
             )}
@@ -198,10 +218,10 @@ export default function Announcements() {
       </div>
 
       {/* 发布便签弹层 */}
-      <div className={`overlay${open ? ' open' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) setOpen(false) }}>
+      {isTeacher && open && <div className="overlay open" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false) }}>
         <div className="composer">
           <span className="tape t-sun" style={{ '--tr': '-4deg' }} />
-          <h2>写一张新便签</h2>
+          <h2>{editingNote ? '修改公告' : '写一张新便签'}</h2>
           <div className="field">
             <label>标题</label>
             <input type="text" maxLength={30} value={title} placeholder="譬如：本周组会照常"
@@ -214,6 +234,11 @@ export default function Announcements() {
           </div>
           <div className="field">
             <label>附件</label>
+            {!!keptAttachments.length && <div className="pending-names">
+              {keptAttachments.map((attachment) => <span key={attachment.id}>
+                📎 {attachment.name} <button type="button" onClick={() => setKeptAttachments((list) => list.filter((item) => item.id !== attachment.id))}>移除</button>
+              </span>)}
+            </div>}
             <input type="file" multiple onChange={(e) => { const chosen = Array.from(e.target.files); setFiles((current) => [...current, ...chosen]); e.target.value = '' }} />
             {!!files.length && <div className="pending-names">{files.map((file, i) => <span key={`${i}-${file.name}`}>
               📎 {file.name} <button type="button" onClick={() => setFiles((list) => list.filter((_, n) => n !== i))}>移除</button>
@@ -239,10 +264,10 @@ export default function Announcements() {
           </div>
           <div className="composer-actions">
             <button className="btn-ghost" onClick={() => setOpen(false)}>先不写</button>
-            <button className="btn-pin" disabled={sending} onClick={publish}>{sending ? '钉上中…' : '钉上公告板'}</button>
+            <button className="btn-pin" disabled={sending} onClick={publish}>{sending ? '保存中…' : editingNote ? '保存修改' : '钉上公告板'}</button>
           </div>
         </div>
-      </div>
+      </div>}
       {selected && <div className="overlay open" onClick={(e) => { if (e.target === e.currentTarget) setSelected(null) }}>
         <div className="composer note-detail" role="dialog" aria-modal="true" aria-label={selected.title}>
           <span className="tape t-sun" />
@@ -252,6 +277,9 @@ export default function Announcements() {
           <AttachmentList existing={selected.attachments || []}
             pathFor={(id) => `/announcements/attachments/${id}`} toast={toast} />
           <div className="note-meta"><span>{new Date(selected.created_at).toISOString().slice(0, 10)}</span><span>{selected.author_name}</span></div>
+          {isTeacher && <div className="composer-actions">
+            <button className="btn-pin" type="button" onClick={() => openComposer(selected)}>✎ 修改公告</button>
+          </div>}
         </div>
       </div>}
     </div>

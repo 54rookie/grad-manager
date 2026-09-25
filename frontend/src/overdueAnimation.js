@@ -13,6 +13,8 @@ export default function animateOverdue(root, hoverTarget) {
   let boltAnimation;
   let frameId = null;
   let active = false;
+  let hovered = false;
+  let fadeTimer = null;
 
   // 新粒子从脚下阵法补到最下层；每出现一层，已有粒子向上移动一档。
   const shiftDuration = 560;
@@ -112,11 +114,25 @@ export default function animateOverdue(root, hoverTarget) {
     'shake', 'burn', 'shockFace', 'zapHair', 'smoke', 'residual'
   ]);
   let lastLeave = -Infinity;
+  // The SVG fades out after a 1s delay and a 1.1s transition.
+  const fadeOutMs = 2100;
+
+  function stopAnimation() {
+    if (fadeTimer !== null) clearTimeout(fadeTimer);
+    fadeTimer = null;
+    active = false;
+    scene.classList.remove('array-animating');
+    if (frameId !== null) cancelAnimationFrame(frameId);
+    frameId = null;
+  }
 
   function onEnter() {
-    if (active) return;
+    if (hovered) return;
+    hovered = true;
+    if (fadeTimer !== null) clearTimeout(fadeTimer);
+    fadeTimer = null;
     const now = performance.now();
-    if (now - lastLeave >= 1700) {
+    if (now - lastLeave >= fadeOutMs) {
       startTime = now;
       if (scene.getAnimations) {
         for (const animation of scene.getAnimations({ subtree: true })) {
@@ -125,18 +141,20 @@ export default function animateOverdue(root, hoverTarget) {
       }
       boltAnimation = undefined;
     }
-    active = true;
-    scene.classList.add('hover-active');
-    frameId = requestAnimationFrame(frame);
+    scene.classList.add('hover-active', 'array-animating');
+    if (!active) {
+      active = true;
+      frameId = requestAnimationFrame(frame);
+    }
   }
 
   function onLeave() {
-    if (!active) return;
+    if (!hovered) return;
+    hovered = false;
     lastLeave = performance.now();
-    active = false;
     scene.classList.remove('hover-active');
-    if (frameId !== null) cancelAnimationFrame(frameId);
-    frameId = null;
+    // Keep the rings and particles moving while the reference SVG fades out.
+    fadeTimer = setTimeout(stopAnimation, fadeOutMs);
   }
 
   hoverTarget.addEventListener('pointerenter', onEnter);
@@ -205,7 +223,8 @@ export default function animateOverdue(root, hoverTarget) {
     if (active) frameId = requestAnimationFrame(frame);
   }
   return () => {
-    onLeave();
+    scene.classList.remove('hover-active');
+    stopAnimation();
     hoverTarget.removeEventListener('pointerenter', onEnter);
     hoverTarget.removeEventListener('pointerleave', onLeave);
   };

@@ -1,5 +1,5 @@
 // Particle motion copied from 渡劫.html; root isolates each rendered SVG.
-export default function animateOverdue(root) {
+export default function animateOverdue(root, hoverTarget) {
   const ns = 'http://www.w3.org/2000/svg';
   const back = root.getElementById('orbiting-diamonds-back');
   const front = root.getElementById('orbiting-diamonds-front');
@@ -8,17 +8,19 @@ export default function animateOverdue(root) {
   const gatherAt = cycle * .85397;
   const hitAt = cycle * .87831;
   const pace = 5855 / cycle;
-  const startTime = performance.now();
+  const scene = root.querySelector('svg');
+  let startTime = performance.now();
   let boltAnimation;
-  let frameId;
+  let frameId = null;
+  let active = false;
 
-  // 新粒子始终补到最上层；每出现一层，已有粒子向下移动一档。
+  // 新粒子从脚下阵法补到最下层；每出现一层，已有粒子向上移动一档。
   const shiftDuration = 560;
   const layers = [
-    {y: 105, rx: 86,  ry: 18, release: 0,    speed: 2 * Math.PI / 3200 * pace},
-    {y: 146, rx: 100, ry: 22, release: 660,  speed: 2 * Math.PI / 3500 * pace},
-    {y: 184, rx: 102, ry: 23, release: 1320, speed: 2 * Math.PI / 3050 * pace},
-    {y: 219, rx: 82,  ry: 18, release: 1980, speed: 2 * Math.PI / 3400 * pace}
+    {y: 219, rx: 82,  ry: 18, release: 0,    speed: 2 * Math.PI / 3400 * pace},
+    {y: 184, rx: 102, ry: 23, release: 660,  speed: 2 * Math.PI / 3050 * pace},
+    {y: 146, rx: 100, ry: 22, release: 1320, speed: 2 * Math.PI / 3500 * pace},
+    {y: 105, rx: 86,  ry: 18, release: 1980, speed: 2 * Math.PI / 3200 * pace}
   ];
   const particles = [];
 
@@ -104,6 +106,42 @@ export default function animateOverdue(root) {
     }
   }
 
+  const cycleAnimationNames = new Set([
+    'pulse', 'energy', 'preArc', 'cornerFlash', 'boltAnim', 'impactAnim',
+    'wave1', 'wave2', 'flash', 'spark', 'eyeBreath', 'irisCharge',
+    'shake', 'burn', 'shockFace', 'zapHair', 'smoke', 'residual'
+  ]);
+  let lastLeave = -Infinity;
+
+  function onEnter() {
+    if (active) return;
+    const now = performance.now();
+    if (now - lastLeave >= 1700) {
+      startTime = now;
+      if (scene.getAnimations) {
+        for (const animation of scene.getAnimations({ subtree: true })) {
+          if (cycleAnimationNames.has(animation.animationName)) animation.currentTime = 0;
+        }
+      }
+      boltAnimation = undefined;
+    }
+    active = true;
+    scene.classList.add('hover-active');
+    frameId = requestAnimationFrame(frame);
+  }
+
+  function onLeave() {
+    if (!active) return;
+    lastLeave = performance.now();
+    active = false;
+    scene.classList.remove('hover-active');
+    if (frameId !== null) cancelAnimationFrame(frameId);
+    frameId = null;
+  }
+
+  hoverTarget.addEventListener('pointerenter', onEnter);
+  hoverTarget.addEventListener('pointerleave', onLeave);
+
   function spiralPoint(particle, time) {
     const elapsed = Math.max(0, time - particle.release);
     let newest = 0;
@@ -150,8 +188,8 @@ export default function animateOverdue(root) {
         const progress = Math.pow((phase - gatherAt) / (hitAt - gatherAt), 1.3);
         point = {
           x: from.x + (120 - from.x) * progress,
-          y: from.y + (128 - from.y) * progress,
-          angle: Math.atan2(128 - from.y, 120 - from.x) * 180 / Math.PI,
+          y: from.y + (260 - from.y) * progress,
+          angle: Math.atan2(260 - from.y, 120 - from.x) * 180 / Math.PI,
           scale: from.scale * (1 - .45 * progress),
           opacity: 1,
           frontHalf: true
@@ -164,8 +202,11 @@ export default function animateOverdue(root) {
         `translate(${point.x.toFixed(2)} ${point.y.toFixed(2)}) rotate(${point.angle.toFixed(1)}) scale(${point.scale.toFixed(2)})`);
       particle.element.setAttribute('opacity', point.opacity.toFixed(2));
     }
-    frameId = requestAnimationFrame(frame);
+    if (active) frameId = requestAnimationFrame(frame);
   }
-  frameId = requestAnimationFrame(frame);
-  return () => cancelAnimationFrame(frameId);
+  return () => {
+    onLeave();
+    hoverTarget.removeEventListener('pointerenter', onEnter);
+    hoverTarget.removeEventListener('pointerleave', onLeave);
+  };
 }

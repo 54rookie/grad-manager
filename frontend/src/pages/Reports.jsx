@@ -6,6 +6,8 @@ import { useToast } from '../toast'
 import { usePageBanner } from '../banner'
 import AttachmentList from '../AttachmentList'
 import ReportEditor from '../ReportEditor'
+import { isAscendedWeek } from '../reportStatus'
+import { waitForProgressSaves } from '../progressSave'
 
 function ReportsBannerBridge() {
   usePageBanner({
@@ -19,6 +21,12 @@ const AVATAR_COLORS = [
   ['#f59e0b', '#fb923c'], ['#7ba05b', '#a3be78'],
   ['#fb923c', '#fbbf24'], ['#f43f5e', '#fb7185'],
 ]
+const STATUS_FIGURES = {
+  未交: '/report-status/status-qi.svg',
+  已交: '/report-status/status-yuanying.svg',
+  逾期: '/report-status/status-overdue.svg',
+  已飞升: '/report-status/status-ascension.svg',
+}
 const DEFAULT_TEMPLATE = '## 本周进展\n- …\n\n## 遇到问题\n- …\n\n## 下周计划\n- …'
 const IMAGE_TOKEN = /!\[([^\]\n]*)\]\(attachment:(pending-[a-z0-9-]+|\d+)\)/g
 const isRasterImage = (file) => /^image\/(png|jpeg|gif|webp|bmp|avif)$/.test(file.type)
@@ -57,13 +65,12 @@ function reportImage(token, name, attachments, pending, toast, onRemove) {
     onRemove={onRemove} toast={toast} />
 }
 
-/* 后端状态 → 视觉状态
-   stamp 一定要显式给出：印章的颜色完全由状态决定（已交=绿 / 逾期=红 / 未交=灰），
-   原先「已交」的 stamp 是空字符串，落回基础样式，三种状态看起来几乎一样。 */
+/* 后端状态 → 视觉状态；图标也由状态决定，逾期不能画成已交的勾。 */
 const STATUS = {
-  已交: { cls: 'ok', stamp: 'ok', dot: '#7ba05b', filled: true },
-  未交: { cls: 'no', stamp: 'no', dot: '#c9b992', filled: false },
-  逾期: { cls: 'late', stamp: 'late', dot: '#f43f5e', filled: true },
+  已交: { cls: 'ok', stamp: 'ok' },
+  未交: { cls: 'no', stamp: 'no' },
+  逾期: { cls: 'late', stamp: 'late' },
+  已飞升: { cls: 'ascended', stamp: 'ascended' },
 }
 const stOf = (s) => STATUS[s] || STATUS['未交']
 
@@ -114,6 +121,17 @@ const ymd = (d) => (d
 /* ISO 周 → 该周周日（YYYY-MM-DD）。基准周对外一律用日期表达，老师只选周日。 */
 const weekSunday = (week) => ymd(weekBounds(week)?.sunday)
 
+function studentWeekStatus(week, hasReport, ascensionWindows) {
+  if (isAscendedWeek(week, ascensionWindows)) return '已飞升'
+  if (hasReport) return '已交'
+  const end = weekBounds(week)?.sunday
+  if (!end) return '未交'
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  end.setHours(0, 0, 0, 0)
+  return today > end ? '逾期' : '未交'
+}
+
 /* 极简 Markdown → JSX（标题 / 列表 / 加粗） */
 function Md({ src, attachments = [], pending = [], toast, empty = '该同学本周暂未提交周报。' }) {
   if (!src || !src.trim()) return <p className="md-empty">{empty}</p>
@@ -147,28 +165,11 @@ function Md({ src, attachments = [], pending = [], toast, empty = '该同学本�
   return <>{blocks}</>
 }
 
-/* 手绘抖动圆圈 + 对勾 */
-function HandCircle({ color, filled }) {
-  return (
-    <svg viewBox="0 0 34 34">
-      {filled ? (
-        <circle cx="17" cy="17" r="13.5" fill="none" stroke={color} strokeWidth="2.2" strokeDasharray="86"
-          strokeLinecap="round" transform="rotate(-78 17 17)" />
-      ) : (
-        <circle cx="17" cy="17" r="13.5" fill="none" stroke={color} strokeWidth="2" strokeDasharray="4 5" strokeLinecap="round" />
-      )}
-      {filled && (
-        <path d="M11 17.5 L15.5 21.5 L24 12.5" fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      )}
-    </svg>
-  )
-}
-
 export default function Reports() {
   const { user } = useAuth()
   const isTeacher = user.role === 'teacher'
 
-  const [weeks, setWeeks] = useState({ current: '', weeks: [], week_index: {}, semesters: [] })
+  const [weeks, setWeeks] = useState({ current: '', weeks: [], week_index: {}, semesters: [], ascension_windows: [] })
   const [week, setWeek] = useState('')
   /* 学期筛选（与周次构成双重条件）；空串 = 还没拿到后端给的默认学期 */
   const [semester, setSemester] = useState('')
@@ -178,6 +179,11 @@ export default function Reports() {
   const [semStartDate, setSemStartDate] = useState('')
   const [savingSem, setSavingSem] = useState(false)
   const [board, setBoard] = useState(null)
+  const [statsBack, setStatsBack] = useState(false)
+  const [semesterStats, setSemesterStats] = useState(null)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [statsError, setStatsError] = useState('')
+  const [statsRevision, setStatsRevision] = useState(0)
   const [mine, setMine] = useState(null)
   const [myList, setMyList] = useState([])   // 学生本人的全部周报（供「最近十周打卡」用）
   const [open, setOpen] = useState(null) // 打开的学生条目
@@ -186,6 +192,7 @@ export default function Reports() {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [preview, setPreview] = useState(false)
+  const [showExample, setShowExample] = useState(false)
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE)
   const [templateDraft, setTemplateDraft] = useState('')
   const [templateOpen, setTemplateOpen] = useState(false)
@@ -193,24 +200,37 @@ export default function Reports() {
   const [pendingFiles, setPendingFiles] = useState([])
   const [keptAttachments, setKeptAttachments] = useState([])
   const richEditor = useRef(null)
+  const boardShell = useRef(null)
+  const boardFront = useRef(null)
+  const boardBack = useRef(null)
+  const hasFlippedBoard = useRef(false)
+  const weeksRequest = useRef(0)
   const timers = useRef({})
   const toast = useToast()
 
   /* 周次元数据：带上学期就只取该学期的周次（学期 → 周 的双重筛选由后端算好）。
      week 的落点：还在新列表里就留着，否则落到该学期的默认周（本周 / 学期内最后一周）。 */
   const loadWeeks = useCallback(async (sem) => {
+    const requestId = ++weeksRequest.current
     try {
       const q = sem ? `?semester=${encodeURIComponent(sem)}` : ''
       const w = await api.get(`/reports/weeks${q}`)
+      if (requestId !== weeksRequest.current) return
       setWeeks(w)
       setSemester((cur) => cur || w.semester)
       setWeek((cur) => (cur && w.weeks.includes(cur) ? cur : w.default_week))
-    } catch (e) { toast(e.message, 'error') }
+    } catch (e) { if (requestId === weeksRequest.current) toast(e.message, 'error') }
   }, [toast])
 
-  useEffect(() => { loadWeeks() }, [loadWeeks])
   useEffect(() => {
-    api.get('/reports/template').then((data) => setTemplate(data.template)).catch((e) => toast(e.message, 'error'))
+    loadWeeks()
+    return () => { weeksRequest.current += 1 }
+  }, [loadWeeks])
+  useEffect(() => {
+    let active = true
+    api.get('/reports/template').then((data) => { if (active) setTemplate(data.template) })
+      .catch((e) => { if (active) toast(e.message, 'error') })
+    return () => { active = false }
   }, [toast])
 
   /* 按周加载数据 */
@@ -219,6 +239,8 @@ export default function Reports() {
     let alive = true
     ;(async () => {
       try {
+        await waitForProgressSaves()
+        if (!alive) return
         if (isTeacher) {
           const b = await api.get(`/reports/board?week=${week}`)
           if (alive) setBoard(b)
@@ -230,10 +252,51 @@ export default function Reports() {
             setBoard(null)
           }
         }
-      } catch (e) { toast(e.message, 'error') }
+      } catch (e) { if (alive) toast(e.message, 'error') }
     })()
     return () => { alive = false }
   }, [week, isTeacher, toast])
+
+  useEffect(() => {
+    boardFront.current?.toggleAttribute('inert', statsBack)
+    boardBack.current?.toggleAttribute('inert', !statsBack)
+    let focusFrame
+    if (hasFlippedBoard.current) {
+      focusFrame = requestAnimationFrame(() => boardShell.current?.focus())
+    }
+    hasFlippedBoard.current = true
+    return () => { if (focusFrame) cancelAnimationFrame(focusFrame) }
+  }, [statsBack, isTeacher])
+
+  useEffect(() => {
+    if (!isTeacher || !statsBack || !semester) return undefined
+    let active = true
+    setStatsLoading(true)
+    setStatsError('')
+    setSemesterStats(null)
+    ;(async () => {
+      try {
+        await waitForProgressSaves()
+        if (!active) return
+        const data = await api.get(`/reports/semester-stats?semester=${encodeURIComponent(semester)}`)
+        if (active) setSemesterStats(data)
+      } catch (e) {
+        if (active) {
+          setStatsError(e.message)
+          toast(e.message, 'error')
+        }
+      }
+      finally { if (active) setStatsLoading(false) }
+    })()
+    return () => { active = false }
+  }, [isTeacher, statsBack, semester, statsRevision, toast])
+
+  useEffect(() => {
+    if (!statsBack) return undefined
+    const onKey = (e) => { if (e.key === 'Escape') setStatsBack(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [statsBack])
 
   /* ESC 关闭弹窗（手账本 + 学期基准周设置） */
   useEffect(() => {
@@ -246,8 +309,9 @@ export default function Reports() {
   const openedRef = useRef('')
 
   const items = board?.items || []
-  const submitted = items.filter((i) => i.status === '已交').length
-  const pct = items.length ? Math.round((submitted / items.length) * 100) : 0
+  const requiredItems = items.filter((i) => i.status !== '已飞升')
+  const submitted = requiredItems.filter((i) => i.status === '已交').length
+  const pct = requiredItems.length ? Math.round((submitted / requiredItems.length) * 100) : items.length ? 100 : 0
 
   /* 学生视角的卡片数据 */
   const myCard = useMemo(() => (mine ? [{
@@ -255,16 +319,16 @@ export default function Reports() {
     student_name: user.name,
     student_no: user.student_no,
     grade_name: user.grade_name,
-    status: '已交',
+    status: studentWeekStatus(week, true, weeks.ascension_windows),
     report: mine,
   }] : [{
     student_id: user.id,
     student_name: user.name,
     student_no: user.student_no,
     grade_name: user.grade_name,
-    status: '未交',
+    status: studentWeekStatus(week, false, weeks.ascension_windows),
     report: null,
-  }]), [mine, user])
+  }]), [mine, user, week, weeks.ascension_windows])
 
   const cards = isTeacher ? items : myCard
 
@@ -300,9 +364,10 @@ export default function Reports() {
     return (weeks.weeks || []).filter((w) => curIdx == null || idx[w] == null || idx[w] <= curIdx)
   }, [weeks])
 
-  const myTotal = startedWeeks.length
-  const myDone = startedWeeks.filter((w) => myList.some((r) => r.week === w)).length
-  const myPct = myTotal ? Math.round((myDone / myTotal) * 100) : 0
+  const requiredWeeks = startedWeeks.filter((w) => !isAscendedWeek(w, weeks.ascension_windows))
+  const myTotal = requiredWeeks.length
+  const myDone = requiredWeeks.filter((w) => myList.some((r) => r.week === w)).length
+  const myPct = myTotal ? Math.round((myDone / myTotal) * 100) : startedWeeks.length ? 100 : 0
 
   /* 只有本周的周报能改，历史周一律只读 */
   const isCurrentWeek = !!week && week === weeks.current
@@ -316,28 +381,18 @@ export default function Reports() {
     setOpen({
       student_id: user.id, student_name: user.name,
       student_no: user.student_no, grade_name: user.grade_name,
-      status: rep ? '已交' : '未交', report: rep,
+      status: studentWeekStatus(w, !!rep, weeks.ascension_windows), report: rep,
     })
   }
 
-  /* 最近十周打卡：从本学期已开始的周里取最后十周，反转成「最近的在最前」。
-     状态判定与后端保持一致（backend/app/routers/reports.py:board）：
-     有该周周报 → 已交；否则「今天」已过该周周日 → 逾期；再否则 → 未交。
-     后端比的是日期不是时刻，这里也把两边都归零到当天再比。 */
+  /* 最近十周打卡：已飞升优先，其余周次与后端同样按提交/周日截止判定。 */
   const stampWeeks = useMemo(() => {
     if (isTeacher) return []
     const done = new Set(myList.map((r) => r.week))
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    return startedWeeks.slice(-10).reverse().map((w) => {
-      if (done.has(w)) return { week: w, status: '已交' }
-      const b = weekBounds(w)
-      if (!b) return { week: w, status: '未交' }
-      const end = new Date(b.sunday)
-      end.setHours(0, 0, 0, 0)
-      return { week: w, status: today > end ? '逾期' : '未交' }
-    })
-  }, [startedWeeks, myList, isTeacher])
+    return startedWeeks.slice(-10).reverse().map((w) => ({
+      week: w, status: studentWeekStatus(w, done.has(w), weeks.ascension_windows),
+    }))
+  }, [startedWeeks, myList, isTeacher, weeks.ascension_windows])
 
   /* 学生端下方网格：最近十周各一张卡片（老师端仍用当周全班名单） */
   const weekCards = useMemo(() => {
@@ -406,6 +461,7 @@ export default function Reports() {
     setKeptAttachments(mine?.attachments || [])
     setPendingFiles([])
     setPreview(false)
+    setShowExample(false)
     setEditing(true)
   }
 
@@ -436,7 +492,9 @@ export default function Reports() {
       const target = w.weeks.includes(week) ? week : w.default_week
       setWeek(target)
       if (isTeacher) {
+        await waitForProgressSaves()
         setBoard(await api.get(`/reports/board?week=${target}`))
+        setStatsRevision((value) => value + 1)
       } else {
         const list = await api.get('/reports/my')
         setMyList(list)
@@ -471,6 +529,7 @@ export default function Reports() {
   const closeBook = () => {
     setOpen(null)
     setEditing(false)
+    setShowExample(false)
   }
 
   const addReportFiles = (list) => {
@@ -508,13 +567,13 @@ export default function Reports() {
   }
 
   const saveTemplate = async () => {
-    if (!templateDraft.trim()) return toast('请填写周报提示', 'error')
+    if (!templateDraft.trim()) return toast('请填写周报示例', 'error')
     setSavingTemplate(true)
     try {
       const data = await api.put('/reports/template', { template: templateDraft })
       setTemplate(data.template)
       setTemplateOpen(false)
-      toast('周报提示已更新', 'success')
+      toast('周报示例已更新', 'success')
     } catch (e) { toast(e.message, 'error') } finally { setSavingTemplate(false) }
   }
 
@@ -549,28 +608,49 @@ export default function Reports() {
                 </select>
               </div>
             </div>
+            <div className="cal-ascension">
+              <img src="/report-status/status-ascension.svg" alt="飞升中的小人" />
+              <strong>快和我一起跳出三界之外</strong>
+              <span>写完两篇论文即可飞升</span>
+            </div>
           </div>
 
-          <div className="board">
+          <div className={`board${isTeacher ? ' board-flippable' : ''}${statsBack ? ' flipped' : ''}`}
+            ref={boardShell}
+            tabIndex={isTeacher ? 0 : undefined}
+            aria-label={isTeacher ? (statsBack ? '周报统计情况，点击翻回提交情况' : '全班提交情况，点击翻转查看统计') : undefined}
+            onClick={isTeacher ? (e) => {
+              if (!e.target.closest('button, a, input, select, textarea')) setStatsBack((value) => !value)
+            } : undefined}
+            onKeyDown={isTeacher ? (e) => {
+              if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault()
+                setStatsBack((value) => !value)
+              }
+            } : undefined}>
             <span className="tape" />
+            <div className="board-flip-inner">
+            <div className="board-face board-face-front" ref={boardFront} aria-hidden={statsBack}>
             <div className="board-head">
               <div className="board-title">
                 <span className="pin">✓</span>{isTeacher ? '全班提交情况' : '我的提交情况'}
               </div>
               <span className="board-meta">
                 {isTeacher
-                  ? `${weekLabel(week, weeks)} · 已收 ${submitted} / ${items.length} 份`
-                  : `${weekLabel(week, weeks)} · ${mine ? '已提交' : '尚未提交'}`}
+                  ? `${weekLabel(week, weeks)} · 已收 ${submitted} / ${requiredItems.length} 份`
+                  : `${weekLabel(week, weeks)} · ${myCard[0].status === '已飞升' ? '已飞升 · 本周免交' : mine ? '已提交' : '尚未提交'}`}
                 {isTeacher && (
-                  <button className="board-refresh board-cfg" type="button" onClick={openSemCfg}
+                  <button className="board-refresh board-cfg" type="button" onClick={(e) => { e.stopPropagation(); openSemCfg() }}
                     title="设置哪一周算「第 1 周」（学期基准周）">
                     ⚙ 学期起始周
                   </button>
                 )}
                 <button className={`board-refresh${reloading ? ' busy' : ''}`} type="button"
-                  onClick={refreshAll} disabled={reloading} title="重新拉取当前周报数据">
+                  onClick={(e) => { e.stopPropagation(); refreshAll() }} disabled={reloading} title="重新拉取当前周报数据">
                   <span className="ico">↻</span> {reloading ? '刷新中…' : '刷新'}
                 </button>
+                {isTeacher && <button className="board-refresh board-stats-toggle" type="button"
+                  onClick={(e) => { e.stopPropagation(); setStatsBack(true) }}>▣ 查看统计</button>}
               </span>
             </div>
             <div className="track">
@@ -581,53 +661,107 @@ export default function Reports() {
               <b>{isTeacher ? `${pct}%` : `${myPct}%`}</b>
             </div>
 
-            {/* 学生端：最近十周打卡印章（已交=绿 / 未交=灰 / 逾期=红） */}
+            {/* 学生端：与老师端共用状态小人，点击小人查看对应周报。 */}
             {!isTeacher && stampWeeks.length > 0 && (
               <div className="stamps">
                 <div className="stamps-head">最近十周提交记录</div>
-                <div className="stamp-row">
+                <div className="report-student-grid">
                   {stampWeeks.map((s) => {
                     const st = stOf(s.status)
                     return (
-                      <div key={s.week} className={`stamp-cell ${st.cls}`}
-                        title={`${s.week}（${weekRange(s.week)}）· ${s.status} · 点击查看该周周报`}
-                        onClick={() => openWeekReport(s.week)}>
-                        <span className="stamp-mark">
-                          {s.status === '已交' ? '✓' : s.status === '逾期' ? '!' : '·'}
-                        </span>
-                        <span className="stamp-week">W{weekNo(s.week)}</span>
+                      <div key={s.week} className={`report-student report-week ${st.cls}${s.week === week ? ' selected' : ''}`}>
+                        <button className="report-student-figure-button" type="button"
+                          title={`${s.week}（${weekRange(s.week)}）· ${s.status} · 点击查看该周周报`}
+                          aria-label={`查看第 ${weeks.week_index?.[s.week] || weekNo(s.week)} 周周报，${s.status}`}
+                          onClick={() => openWeekReport(s.week)}>
+                          <img className="report-student-figure" src={STATUS_FIGURES[s.status]} alt="" aria-hidden="true" />
+                        </button>
+                        <span className="report-student-name">W{weekNo(s.week)}</span>
+                        <span className="report-student-status">{s.status}</span>
                       </div>
                     )
                   })}
                 </div>
               </div>
             )}
-            {/* 全班每个人的圆点：这是老师点开某个学生周报的主要入口，学生端不需要 */}
+            {/* 老师端：原 HTML 的四境 SVG 完整保存在独立文件中 */}
             {isTeacher && (
-            <div className="dots">
-              {cards.map((it, i) => {
+            <div className="report-student-grid">
+              {cards.map((it) => {
                 const st = stOf(it.status)
                 return (
-                  <div key={it.student_id} className={`dot ${st.cls}`} onClick={() => openStudent(it, false)}>
-                    <HandCircle color={st.dot} filled={st.filled} />
-                    <span className="who">{it.student_name[0]}</span>
-                    <span className="tip">
-                      {it.student_name} · {it.status}
-                      {it.report ? ` · 提交于 ${new Date(it.report.created_at).toLocaleString('zh-CN', { hour12: false }).slice(5, 16)}` : ''}
-                    </span>
+                  <div key={it.student_id} className={`report-student ${st.cls}`} onClick={(e) => e.stopPropagation()}>
+                    <button className="report-student-figure-button" type="button"
+                      title={`${it.student_name} · ${it.status}${it.report ? ' · 本周有周报' : ''}`}
+                      aria-label={`查看${it.student_name}的周报，${it.status}`}
+                      onClick={() => openStudent(it, false)}>
+                      <img className="report-student-figure" src={STATUS_FIGURES[it.status]} alt="" aria-hidden="true" />
+                    </button>
+                    <span className="report-student-name">{it.student_name}</span>
+                    <span className="report-student-status">{it.status}</span>
                   </div>
                 )
               })}
             </div>
             )}
-            {/* 状态图例只是老师看全班圆点时的辅助说明，学生端不需要 —— 直接不渲染 */}
-            {isTeacher && (
-              <div className="legend">
-                <span><i className="l1" />已交</span>
-                <span><i className="l2" />未交</span>
-                <span><i className="l3" />逾期</span>
+            </div>
+            {isTeacher && <div className="board-face board-face-back" ref={boardBack} aria-hidden={!statsBack}>
+              <div className="report-stats-head">
+                <div className="board-title"><span className="pin">▣</span>周报统计 · {weeks.semester_label}</div>
+                <button className="board-refresh" type="button"
+                  onClick={(e) => { e.stopPropagation(); setStatsBack(false) }}>↩ 返回提交情况</button>
               </div>
-            )}
+              {!semesterStats && <div className="report-stats-empty" role={statsError ? 'alert' : undefined}>
+                <p>{statsLoading ? '正在整理周报统计…' : statsError || '暂无统计数据'}</p>
+                {!statsLoading && statsError && <button className="board-refresh" type="button"
+                  onClick={(e) => { e.stopPropagation(); setStatsRevision((value) => value + 1) }}>↻ 重试加载</button>}
+              </div>}
+              {semesterStats && <>
+                <div className="report-stats-summary">
+                  {[
+                    ['本周应交', semesterStats.current_week.required],
+                    ['本周已交', semesterStats.current_week.submitted],
+                    ['本周未交', semesterStats.current_week.missing],
+                    ['本周逾期', semesterStats.current_week.overdue],
+                    ['本周已飞升', semesterStats.current_week.ascended],
+                    ['学期总上交率', `${semesterStats.totals.rate}%`],
+                  ].map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}
+                </div>
+                <p className="report-stats-note">
+                  学期已开始 {semesterStats.week_count} 周 · 应交 {semesterStats.totals.required} 人次，已交 {semesterStats.totals.submitted} 人次
+                  {semesterStats.totals.required === 0 && semesterStats.student_count > 0 && semesterStats.week_count > 0 ? ' · 全部免交，完成率按 100% 显示' : ''}
+                </p>
+                <div className="report-stats-columns">
+                  <section>
+                    <h5>每位学生 · 学期上交率</h5>
+                    <div className="report-stats-list">
+                      {semesterStats.students.length ? semesterStats.students.map((item) => (
+                        <div className="report-rate-row" key={item.student_id}>
+                          <span className="report-rate-name">{item.student_name}<small>{item.required
+                            ? `已交 ${item.submitted}/${item.required} 周` : item.ascended ? '本学期免交' : '暂无应交周'}</small></span>
+                          <span className="report-rate-track"><i style={{ width: `${item.rate}%` }} /></span>
+                          <b>{item.rate}%</b>
+                        </div>
+                      )) : <p className="report-stats-empty">暂无学生</p>}
+                    </div>
+                  </section>
+                  <section>
+                    <h5>每周全班 · 上交率</h5>
+                    <div className="report-stats-list">
+                      {semesterStats.weeks.length ? semesterStats.weeks.map((item) => (
+                        <div className="report-rate-row" key={item.week}>
+                          <span className="report-rate-name">{weekLabel(item.week, weeks)}<small>{item.required
+                            ? `已交 ${item.submitted}/${item.required} 人` : item.ascended ? '全员免交' : '暂无学生'}</small></span>
+                          <span className="report-rate-track"><i style={{ width: `${item.rate}%` }} /></span>
+                          <b>{item.rate}%</b>
+                        </div>
+                      )) : <p className="report-stats-empty">本学期还没有开始的周次</p>}
+                    </div>
+                  </section>
+                </div>
+              </>}
+            </div>}
+            </div>
           </div>
         </section>
 
@@ -635,7 +769,7 @@ export default function Reports() {
         <div className="section-head">
           <h2>{isTeacher ? '学生周报' : '我的周报'}</h2>
           <span className="line" />
-          {isTeacher && <button className="act act-view" onClick={() => { setTemplateDraft(template); setTemplateOpen(true) }}>✎ 编辑周报提示</button>}
+          {isTeacher && <button className="act act-view" onClick={() => { setTemplateDraft(template); setTemplateOpen(true) }}>✎ 编辑周报示例</button>}
           {!isTeacher && (
             <div className="head-actions">
               {isCurrentWeek ? (
@@ -668,7 +802,7 @@ export default function Reports() {
                   <span className="wn-range">{weekRange(it.week)}</span>
                 </div>
                 <div className="note-brief">
-                  {brief || <span style={{ color: 'var(--ink-3)' }}>这一周还没有提交周报</span>}
+                  {brief || <span style={{ color: 'var(--ink-3)' }}>{it.status === '已飞升' ? '基础节点已完成 · 本周免交' : '这一周还没有提交周报'}</span>}
                 </div>
                 <div className="note-foot">
                   <span className="tm">
@@ -705,7 +839,7 @@ export default function Reports() {
                   </div>
                 </div>
                 <div className="note-brief">
-                  {brief || <span style={{ color: 'var(--ink-3)' }}>本周周报还未出现在桌面上…</span>}
+                  {brief || <span style={{ color: 'var(--ink-3)' }}>{it.status === '已飞升' ? '基础节点已完成 · 本周免交' : '本周周报还未出现在桌面上…'}</span>}
                 </div>
                 <div className="note-foot">
                   <span className="tm">
@@ -756,7 +890,8 @@ export default function Reports() {
                   <div className="md">
                     <Md src={open.report?.content_md}
                       attachments={open.report?.attachments || []} toast={toast}
-                      empty={isTeacher ? '该同学本周暂未提交周报。' : '这一周还没有提交周报。'} />
+                      empty={open.status === '已飞升' ? '基础节点已完成，这一周无需提交周报。'
+                        : isTeacher ? '该同学本周暂未提交周报。' : '这一周还没有提交周报。'} />
                   </div>
                   <AttachmentList existing={(open.report?.attachments || []).filter((a) => !open.report?.content_md?.includes(`attachment:${a.id})`))}
                     pathFor={(id) => `/reports/attachments/${id}`} toast={toast} />
@@ -769,7 +904,7 @@ export default function Reports() {
                   </div>
                   {preview
                     ? <div className="md"><Md src={draft} attachments={keptAttachments} pending={pendingFiles} toast={toast} empty="（还没有内容）" /></div>
-                    : <ReportEditor ref={richEditor} value={draft} onChange={setDraft} placeholder={template}
+                    : <ReportEditor ref={richEditor} value={draft} onChange={setDraft} placeholder={DEFAULT_TEMPLATE}
                         attachments={keptAttachments} pending={pendingFiles}
                         onRemoveImage={removeInlineImage} toast={toast} />}
                   <div className="report-file-actions">
@@ -796,13 +931,21 @@ export default function Reports() {
               <button className="m-close" title="关闭" aria-label="关闭弹窗" onClick={closeBook}>
                 <svg viewBox="0 0 16 16"><path d="M2 2 L14 14 M14 2 L2 14" /></svg>
               </button>
-              <h4>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#d63050" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>{isTeacher ? '导师批注' : '老师的批注'}
-              </h4>
+              <div className="report-side-head">
+                <h4>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#d63050" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  </svg>{showExample && editing ? '周报示例' : isTeacher ? '导师批注' : '老师的批注'}
+                </h4>
+                {editing && <button className="mini-toggle example-toggle" type="button"
+                  onClick={() => setShowExample((value) => !value)}>
+                  {showExample ? '老师批注' : '周报示例'}
+                </button>}
+              </div>
 
-              <div className="cmt-list">
+              {showExample && editing ? (
+                <div className="md report-example"><Md src={template} toast={toast} empty="暂无周报示例。" /></div>
+              ) : <div className="cmt-list">
                 {open.report?.comments?.length
                   ? open.report.comments.map((c, i) => (
                     <div className="cmt" key={c.id} style={{ animationDelay: `${i * 0.08}s` }}>
@@ -814,8 +957,9 @@ export default function Reports() {
                       <span className="wave" />
                     </div>
                   ))
-                  : <div className="cmt-empty">{open.report ? '还没有批注，写下第一条红笔意见吧。' : '该同学本周还没有提交周报。'}</div>}
-              </div>
+                  : <div className="cmt-empty">{open.report ? '还没有批注，写下第一条红笔意见吧。'
+                    : open.status === '已飞升' ? '已飞升，本周无需提交周报。' : '该同学本周还没有提交周报。'}</div>}
+              </div>}
 
               {editing ? (
                 <div className="cmt-foot">
@@ -839,7 +983,8 @@ export default function Reports() {
                 </>
               ) : !isTeacher && !editing && isCurrentWeek ? (
                 <div className="cmt-foot">
-                  <span className="cmt-tip">{mine ? '可随时修改本周周报' : '本周周报还没写'}</span>
+                  <span className="cmt-tip">{open.status === '已飞升' ? '本周免交，也可自愿撰写'
+                    : mine ? '可随时修改本周周报' : '本周周报还没写'}</span>
                   <button className="btn-send" onClick={startWrite}>
                     <span className="pen">🖊</span>{mine ? '修改周报' : '撰写周报'}
                   </button>
@@ -894,12 +1039,12 @@ export default function Reports() {
         <div className="overlay open" onClick={(e) => { if (e.target === e.currentTarget) setTemplateOpen(false) }}>
           <div className="pwd-card report-template-card">
             <span className="tape" />
-            <h3>编辑周报提示</h3>
-            <p className="pwd-sub">这段文字会显示在学生撰写周报的浅色提示中，支持用 Markdown 写示例格式。</p>
+            <h3>编辑周报示例</h3>
+            <p className="pwd-sub">这段文字显示在学生撰写周报时的右侧示例页，支持 Markdown；左侧浅色提示始终保持系统原始模版。</p>
             <textarea value={templateDraft} maxLength={4000} onChange={(e) => setTemplateDraft(e.target.value)} />
             <div className="pwd-actions">
               <button className="btn-ghost" onClick={() => setTemplateOpen(false)}>取消</button>
-              <button className="btn-pin" disabled={savingTemplate} onClick={saveTemplate}>{savingTemplate ? '保存中…' : '保存提示'}</button>
+              <button className="btn-pin" disabled={savingTemplate} onClick={saveTemplate}>{savingTemplate ? '保存中…' : '保存示例'}</button>
             </div>
           </div>
         </div>

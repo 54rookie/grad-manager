@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { api } from './api'
 import { useAuth } from './auth'
 
@@ -17,17 +17,30 @@ export function MessagesProvider({ children }) {
   const [items, setItems] = useState([])
   // 未读数以后端为准：只有「发给我的」才算，老师端恒为 0
   const [unread, setUnread] = useState(0)
+  const currentUserRef = useRef(user?.id)
+  const requestRef = useRef(0)
+  currentUserRef.current = user?.id
 
   const load = useCallback(async () => {
-    if (!user) { setItems([]); setUnread(0); return }
+    const userId = user?.id
+    const requestId = ++requestRef.current
+    if (!userId) { setItems([]); setUnread(0); return }
     try {
       const d = await api.get('/messages')
+      if (currentUserRef.current !== userId || requestRef.current !== requestId) return
       setItems(d.items || [])
       setUnread(d.unread || 0)
-    } catch { setItems([]); setUnread(0) }   // 消息拿不到不该影响页面本身
-  }, [user])
+    } catch {
+      if (currentUserRef.current === userId && requestRef.current === requestId) {
+        setItems([]); setUnread(0)
+      }
+    }   // 消息拿不到不该影响页面本身
+  }, [user?.id])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    return () => { requestRef.current += 1 }
+  }, [load])
 
   /* 老师催办后，学生那边得有机会看到角标变。
      10s 轻量轮询 + 「切回标签页立刻拉一次」——后者比缩短轮询更有效，

@@ -16,7 +16,7 @@
 |------|------|----------|------|
 | 进度看板 | `/progress` | 师生（**学生只读**） | 按年级分组展示全班论文进度：**两篇论文各一条 8 节点时间轴**、完成度（手写 SVG 甜甜圈）、节点计划/实际时间、自动风险判定（四级）。老师可点选节点、改节点名、设置风险基准、手动改风险、看往返与周报并「一键催办」；学生进去是全面降级只读。**老师的默认首页** |
 | 论文管理 | `/thesis` | 师生 | 多轮往返：学生提交文字+附件 → 老师批注并回传批注文件 → 学生再提交。全部留档。**上一轮未获批注时禁止开新一轮**，但可以「修改本次提交」。**学生的默认首页** |
-| 每周周报 | `/reports` | 师生 | 学生每周交 Markdown 周报（可编辑/预览/历史只读），文字和图片在同一编辑区，可在光标位置插入图片并继续在图片后写文字；其他文件作为附件。老师按周看全班 已交/未交/逾期、点评，并可编辑学生撰写时的提示 |
+| 每周周报 | `/reports` | 师生 | 学生每周交 Markdown 周报（可编辑/预览/历史只读），文字和图片在同一编辑区，可在光标位置插入图片并继续在图片后写文字；其他文件作为附件。撰写时右页可切换老师批注与老师编辑的周报示例，左页浅色提示固定为系统原始模版。老师按周看全班 已交/未交/逾期/已飞升、点评；进度看板可翻转查看个人、逐周和总体上交率。基础节点完成度达 100% 的学生从完成所在周起免交，不计入应交、已交或提交率分母；历史周按当时的免交区间统计 |
 | 问答点评 | `/qa` | 师生 | 类小红书信息流：任何人发帖、全员可见、任何人可回复 |
 | 每日公告 | `/announcements` | 师生（发布仅老师） | 软木墙 + 便签，老师发布/删除并可添加附件；点击便签查看全文与下载附件 |
 | 常用链接 | `/links` | 师生（维护仅老师） | 老师维护的外链按钮，新窗口打开 |
@@ -26,7 +26,7 @@
 登录后按角色分流：老师 → `/progress`，学生 → `/thesis`
 （常量 `TEACHER_HOME` / `STUDENT_HOME` 在 `App.jsx` 顶部，`<Home>` 用它俩分流）。
 
-周报与公告的附件存于 `GM_UPLOAD_DIR`，元数据分别在 `ReportAttachment`、`AnnouncementAttachment` 表里。每份周报或公告最多 10 个附件，每个不超过 20 MB；常见栅格图片在周报正文的插入位置显示。周报附件只有本人和老师能读取，公告附件供所有已登录用户下载。老师编辑的周报撰写提示存于 `Setting` 表，空库默认值由 `routers/reports.py` 提供。修改后端接口后需要重启 5183 服务，仅重新构建前端会让新接口返回 405。
+周报与公告的附件存于 `GM_UPLOAD_DIR`，元数据分别在 `ReportAttachment`、`AnnouncementAttachment` 表里。每份周报或公告最多 10 个附件，每个不超过 20 MB；论文往返每次上传的单个附件也不超过 20 MB。常见栅格图片在周报正文的插入位置显示。周报附件只有本人和老师能读取，公告附件供所有已登录用户下载。老师编辑的周报示例存于 `Setting` 表，空库默认值由 `routers/reports.py` 提供；左侧暗色提示始终使用前端内置的原始模版。修改后端接口后需要重启 5183 服务，仅重新构建前端会让新接口返回 405。
 
 ---
 
@@ -370,6 +370,7 @@ function ThesisBannerBridge() {
 - **ThesisRound**：project_id、round_no、student_text、student_file(+orig)、submitted_at、
   teacher_comment、teacher_file(+orig)、feedback_at
 - **WeeklyReport**：student_id、week(`2026-W37` ISO 周)、content_md
+- **ReportAscension**：student_id、start_week、end_week（可空）；记录免交周次区间，撤销基础节点完成后仍保留历史状态。新表由 `create_all()` 创建，无需给已有表补列
 - **ReportComment**：report_id、author_id、content
 - **Message**：from_id、to_id、topic(`论文管理`|`周报`|`问答点评`)、content、read_at
 - **Setting**：key(主键)、value(JSON 字符串)。目前只用来存风险基准配置
@@ -481,20 +482,21 @@ ADDED_COLUMNS = {
 | GET | `/me` | 登录 | 当前用户 |
 | POST | `/me/password` | 登录 | 修改自己的密码（验原密码，新密码 ≥6 位） |
 | GET/POST/PUT/DELETE | `/grades[/{id}]` | GET 登录；写 老师 | 年级 CRUD |
-| GET/POST/PUT/DELETE | `/users[/{id}]` | GET 登录；写 老师 | 账号 CRUD；`GET /users?role=student` 可筛选 |
+| GET/POST/PUT/DELETE | `/users[/{id}]` | GET 登录；写 老师 | 账号 CRUD；`GET /users?role=student` 可筛选；删除账号会连同其关联记录与附件一起删除，页面需三次确认，最后一个老师账号不能删除 |
 | GET | `/thesis/risk-config` | 登录 | 风险基准配置（已与默认值合并） |
 | PUT | `/thesis/risk-config` | 老师 | 改基准，改完全班风险立刻重算 |
-| GET | `/thesis/projects` | 登录 | **师生都返回全班**（看板需要）；学生端在 `Thesis.jsx` 里按 `student_id` 自行过滤 |
+| GET | `/thesis/projects` | 登录 | **师生都返回全班**（看板需要）；学生端在 `Thesis.jsx` 里按 `student_id` 自行过滤；项目视图含当前 `ascended_from_week` 和历史 `ascension_windows` |
 | POST | `/thesis/projects/{student_id}` | 老师 | 为学生建项目（初始 **8 节点 × 2 轨道 = 16 项**） |
 | PUT | `/thesis/projects/{id}` | 老师改全部；学生只能改自己的 title | 可传 `title/stage/progress/milestones/risk_override` |
 | GET/POST | `/thesis/projects/{id}/rounds` | 师生（限本人项目） | POST 为 multipart：`text`+`file`；前轮未批注返回 400 |
 | PUT | `/thesis/rounds/{rid}` | 学生本人 | 老师批注前可改：`text`+`file`+`keep_file=0` 删附件 |
 | POST | `/thesis/rounds/{rid}/feedback` | 老师 | multipart：`comment`+`file` |
 | GET | `/thesis/files/{stored_name}` | 登录 | 下载附件 |
-| GET | `/reports/weeks` | 登录 | `{current, weeks[12]}`，由近及远 |
+| GET | `/reports/weeks` | 登录 | 周次与学期元数据；学生响应含当前 `ascended_from_week` 和历史 `ascension_windows` |
 | GET | `/reports/my` | 登录 | 我的周报列表（学生用） |
 | POST | `/reports/my/{week}` | 学生 | upsert 某周周报 |
-| GET | `/reports/board?week=` | 老师 | 某周全班 已交/未交/逾期（周日截止） |
+| GET | `/reports/board?week=` | 老师 | 某周全班 已交/未交/逾期/已飞升（周日截止；已飞升周不参与应交统计） |
+| GET | `/reports/semester-stats?semester=` | 老师 | 一次返回所选学期已开始周次的个人、逐周、本周及总体统计；无学生或尚无开始周显示 0%，有学生且全员免交显示 100% |
 | GET | `/reports/student/{sid}` | 老师 | 某学生全部周报 |
 | POST | `/reports/{rid}/comments` | 师生（限本人） | 点评 |
 | GET | `/messages` | 登录 | 老师看自己发出的、学生看收到的；含 `unread` |

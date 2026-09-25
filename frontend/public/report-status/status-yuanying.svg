@@ -1,0 +1,194 @@
+<svg id="status-yuanying" viewBox="0 0 240 280" xmlns="http://www.w3.org/2000/svg" style="overflow:visible" data-page-node-id="eOujMVFL54VIai6u0suwCx">
+    <defs data-page-node-id="LWnWxtJgBni0awNGw37BDG">
+      <linearGradient id="y-skin" x1="0" y1="0" x2="0" y2="1" data-page-node-id="jhIEF8pg0uUOjj24ZxcjJg">
+            <stop offset="0" stop-color="#ffe9d2" data-page-node-id="kSCzmZfr19v8cwiTEuZNJW"/><stop offset="1" stop-color="#ffd6b4" data-page-node-id="CsGpenOngP2W5YOYJkosWr"/>
+          </linearGradient>
+      <linearGradient id="y-robe" x1="0" y1="0" x2="0" y2="1" data-page-node-id="GqYzHGEbLiKY1LfT1eVOHc">
+        <stop offset="0" stop-color="#eef2ff" data-page-node-id="ITBI64LsJNRLw4NZVJh822"/><stop offset="1" stop-color="#93aae6" data-page-node-id="WSKU3frgHaPgGygDeknxXa"/>
+      </linearGradient>
+      <linearGradient id="y-ring" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#e9f4ff"/><stop offset=".5" stop-color="#a8c8ee"/><stop offset="1" stop-color="#7399d1"/>
+      </linearGradient>
+      <radialGradient id="y-glow" cx=".5" cy=".5" r=".5">
+        <stop offset="0" stop-color="#a9ccf6" stop-opacity=".43"/>
+        <stop offset="1" stop-color="#a9ccf6" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="y-disk" cx=".5" cy=".5" r=".5">
+        <stop offset="0" stop-color="#c4defa" stop-opacity=".64"/>
+        <stop offset="1" stop-color="#c4defa" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="y-blade" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#f5fbff"/><stop offset=".5" stop-color="#9dc2eb"/><stop offset="1" stop-color="#e3f1ff"/>
+      </linearGradient>
+      <filter id="y-soft-blur" x="-70%" y="-70%" width="240%" height="240%">
+        <feGaussianBlur stdDeviation="3"/>
+      </filter>
+      <linearGradient id="y-orbit-fade" gradientUnits="userSpaceOnUse" x1="0" y1="186" x2="0" y2="209">
+        <stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+      </linearGradient>
+      <mask id="y-orbit-clearance" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="-24" y="-20" width="288" height="229">
+        <rect x="-24" y="-20" width="288" height="229" fill="url(#y-orbit-fade)"/>
+      </mask>
+      <style>
+        .y-bob{animation:y-bob 3.6s ease-in-out infinite}
+        @keyframes y-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+        .y-spin-k{transform-box:fill-box;transform-origin:center;animation:y-spin 10s linear infinite;filter:drop-shadow(0 0 2.5px #9ec9f5)}
+        .y-spin-r{transform-box:fill-box;transform-origin:center;animation:y-spinr 34s linear infinite}
+        @keyframes y-spin{to{transform:rotate(360deg)}}
+        @keyframes y-spinr{to{transform:rotate(-360deg)}}
+        .y-hex{transform-box:fill-box;transform-origin:center;animation:y-spin 16s linear infinite}
+        .y-hex2{transform-box:fill-box;transform-origin:center;animation:y-spinr 24s linear infinite}
+        .y-glowdisk{transform-box:fill-box;transform-origin:center;animation:y-breathe 3.2s ease-in-out infinite}
+        .y-breathe{transform-box:fill-box;transform-origin:center;animation:y-breathe 3.2s ease-in-out infinite}
+        @keyframes y-breathe{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:.95;transform:scale(1.06)}}
+        .y-tail{transform-box:fill-box;transform-origin:top center;animation:y-tail 2.6s ease-in-out infinite}
+        @keyframes y-tail{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(5deg)}}
+      </style>
+    </defs>
+
+    <!-- 蓝色六芒星法阵（微微发光） -->
+    <g id="platform" data-page-node-id="E4OPlBceDtDP1mL6bjyuCD">
+      <ellipse class="y-glowdisk" cx="120" cy="240" rx="96" ry="29" fill="url(#y-disk)" data-page-node-id="3fEeZ90w0ZKWCU3lmZ8VyC"/>
+      <g transform="translate(120,238) scale(1.18,0.4)" data-page-node-id="HndXmCLkZ8ClCDuNiaxOrD">
+        <g class="y-hex2" data-page-node-id="uoZEmlRQXjrObHl3YK9w74">
+          <circle r="64" fill="none" stroke="#9fbfe9" stroke-width="3" stroke-dasharray="6 10" opacity=".8" data-page-node-id="2y5UjgCPJHmwb5Nuo3gl2H"/>
+          <circle cx="64" cy="0" r="5" fill="#c5def7" data-page-node-id="0g9En3X1dpx9w78yHwZsds"/>
+          <circle cx="-64" cy="0" r="5" fill="#c5def7" data-page-node-id="4wSPfdDxvGCl0HXESK2Uw5"/>
+          <circle cx="0" cy="64" r="5" fill="#c5def7" data-page-node-id="GvXj3q5Ks3n1YRspmf6ETD"/>
+          <circle cx="0" cy="-64" r="5" fill="#c5def7" data-page-node-id="EkMaN5zcZdxK6BcX7wCZqN"/>
+        </g>
+        <g class="y-hex" data-page-node-id="QD7pqWA1OLa1AyW0g0WROa">
+          <circle r="54" fill="#dceafb" opacity=".35" data-page-node-id="F0ZAy6mIch5q7SxfDBAgKp"/>
+          <circle r="54" fill="none" stroke="#84a9da" stroke-width="4" data-page-node-id="13zIsvFnkTi9HIoyFtbVUE"/>
+          <circle r="42" fill="none" stroke="#b9d2f1" stroke-width="2" data-page-node-id="a36lzQ0TzvTDyicJNE71b9"/>
+          <polygon points="0,-46 39.8,23 -39.8,23" fill="none" stroke="#739bd1" stroke-width="3.5" stroke-linejoin="round" data-page-node-id="VvhMtWswqAOwPAOSZGtsev"/>
+          <polygon points="0,46 39.8,-23 -39.8,-23" fill="none" stroke="#739bd1" stroke-width="3.5" stroke-linejoin="round" data-page-node-id="ltLCVG9m0ivs4FvGyLGz0r"/>
+          <circle r="7" fill="#f4f9ff" stroke="#84a9da" stroke-width="2.5" data-page-node-id="hngRxTymaoaIXFbAczVxS0"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- 背后大型灵力圆环（视觉核心） -->
+    <g id="aura" transform="translate(0,-8)" mask="url(#y-orbit-clearance)" data-page-node-id="rK11LzfqLmM5sbfDTRcFv9">
+      <g transform="translate(120 128) scale(1.1) translate(-120 -128)">
+      <circle class="y-breathe" cx="120" cy="128" r="96" fill="url(#y-glow)" data-page-node-id="yhEsJlEwd6D3gr0SLaaHiG"/>
+      <circle cx="120" cy="128" r="86" fill="none" stroke="#a8c8ee" stroke-width="10" opacity=".35" filter="url(#y-soft-blur)"/>
+      <circle cx="120" cy="128" r="86" fill="none" stroke="url(#y-ring)" stroke-width="5" opacity=".9" data-page-node-id="BhEtTuZSWL9kMlhnwGigJj"/>
+      <g class="y-spin-r" data-page-node-id="DuzdF679lyzyVljJVEBFis">
+        <circle cx="120" cy="128" r="78" fill="none" stroke="#a3c2e9" stroke-width="2" stroke-dasharray="3 12" opacity=".8" data-page-node-id="XBQCaQPD89anDCWxezgtNi"/>
+        <rect x="117" y="46" width="6" height="10" rx="2" fill="#c5dcf5" data-page-node-id="BstKzde4AMARVz7bC2iKo7"/>
+        <rect x="117" y="200" width="6" height="10" rx="2" fill="#c5dcf5" data-page-node-id="pZzWRCv668cHeFV2oBkrW0"/>
+        <rect x="38" y="125" width="10" height="6" rx="2" fill="#c5dcf5" data-page-node-id="tGSPaiHViLcmabvMgBzsF8"/>
+        <rect x="192" y="125" width="10" height="6" rx="2" fill="#c5dcf5" data-page-node-id="t8Up4BcjAnakHPt7FXgfaD"/>
+      </g>
+      <!-- 御剑环阵：8 剑均布，柄朝心、尖朝外，沿环旋转 -->
+      <g id="sword-ring" class="y-spin-k" data-page-node-id="1yPVIjZGkl0r9Bu1UBHkuY">
+        <circle cx="120" cy="128" r="86" fill="none" stroke="none" data-page-node-id="EbkP6zgXA1MB6wc1ImGncW"/>
+        <g transform="translate(120,36)" data-page-node-id="rbZHasHvCZ39MX8dpOWrUn">
+          <polygon points="-3.5,8 3.5,8 2,-22 0,-28 -2,-22" fill="url(#y-blade)" data-page-node-id="h7pJyq8GmP7FmmU5CT3BEQ"/>
+          <rect x="-9" y="8" width="18" height="5" rx="2.5" fill="#c3d9f5" data-page-node-id="ajE8LsaRRyWVVnwiGYVKr5"/>
+          <rect x="-2.5" y="13" width="5" height="11" rx="2.5" fill="#6688bb" data-page-node-id="DZtI0WWVgSUAxFcMAPgv8n"/>
+          <circle cx="0" cy="27" r="3" fill="#d9eeff" data-page-node-id="sLSKfudlKMDpuEsagVDck2"/>
+        </g>
+        <g transform="rotate(45 120 128)" data-page-node-id="yjCPetv8XBLBMXEM6cMP4b"><g transform="translate(120,36)" data-page-node-id="n8qmuBjTBuqo4wQcGkjOst">
+          <polygon points="-3.5,8 3.5,8 2,-22 0,-28 -2,-22" fill="url(#y-blade)" data-page-node-id="jVAFFyiJNzEcSYY9KS7yXT"/>
+          <rect x="-9" y="8" width="18" height="5" rx="2.5" fill="#c3d9f5" data-page-node-id="n4rKDSE3nOjzVE0mEEsW90"/>
+          <rect x="-2.5" y="13" width="5" height="11" rx="2.5" fill="#6688bb" data-page-node-id="CMykneqguGDV4SqdwzbFLH"/>
+          <circle cx="0" cy="27" r="3" fill="#d9eeff" data-page-node-id="HWDAY8RIMJxxey1mwbVZaG"/>
+        </g></g>
+        <g transform="rotate(90 120 128)" data-page-node-id="vlE4RWrF0fMfvWDGSAJGiw"><g transform="translate(120,36)" data-page-node-id="s373tcMhezZnzF4IZYbK5T">
+          <polygon points="-3.5,8 3.5,8 2,-22 0,-28 -2,-22" fill="url(#y-blade)" data-page-node-id="ob3dEBEmB2vVyBaZdbeEkF"/>
+          <rect x="-9" y="8" width="18" height="5" rx="2.5" fill="#c3d9f5" data-page-node-id="9fIXpxzCmheri1ISG3LnxI"/>
+          <rect x="-2.5" y="13" width="5" height="11" rx="2.5" fill="#6688bb" data-page-node-id="TktGBpIQ5pUOHCW5rjNlAl"/>
+          <circle cx="0" cy="27" r="3" fill="#d9eeff" data-page-node-id="o9KOnbBHkmGCT082ss1cAz"/>
+        </g></g>
+        <g transform="rotate(135 120 128)" data-page-node-id="ZvndCp7HstHI3Lv7nqFKwa"><g transform="translate(120,36)" data-page-node-id="Lb6v64eYlptg2kgcHmYf5O">
+          <polygon points="-3.5,8 3.5,8 2,-22 0,-28 -2,-22" fill="url(#y-blade)" data-page-node-id="2Jsnk1YBMYXuFqdjvFhs7k"/>
+          <rect x="-9" y="8" width="18" height="5" rx="2.5" fill="#c3d9f5" data-page-node-id="P4CAViJrLnv3Vz5dSIr9TZ"/>
+          <rect x="-2.5" y="13" width="5" height="11" rx="2.5" fill="#6688bb" data-page-node-id="AYdpiKgGCAuBBdiOWmxdK5"/>
+          <circle cx="0" cy="27" r="3" fill="#d9eeff" data-page-node-id="3IlCcXK6bRqwdtmkspG7dK"/>
+        </g></g>
+        <g transform="rotate(180 120 128)" data-page-node-id="605yvAb7ZQtFrLanct1qd7"><g transform="translate(120,36)" data-page-node-id="dVaE2DsLJTIkmsSWmuda6Y">
+          <polygon points="-3.5,8 3.5,8 2,-22 0,-28 -2,-22" fill="url(#y-blade)" data-page-node-id="ocWasRMv4Tw5zbJaEUDrK3"/>
+          <rect x="-9" y="8" width="18" height="5" rx="2.5" fill="#c3d9f5" data-page-node-id="aahA5FtFatT1wiZqUvTckd"/>
+          <rect x="-2.5" y="13" width="5" height="11" rx="2.5" fill="#6688bb" data-page-node-id="6WKLCnVwQzkDK8xR4WKYuN"/>
+          <circle cx="0" cy="27" r="3" fill="#d9eeff" data-page-node-id="pHYEjZCKIyveR9rA3nEUhu"/>
+        </g></g>
+        <g transform="rotate(225 120 128)" data-page-node-id="m9iNlhAiDVQBtIvFFntC3k"><g transform="translate(120,36)" data-page-node-id="KYGFz2hnPaLcjviKLIgsWP">
+          <polygon points="-3.5,8 3.5,8 2,-22 0,-28 -2,-22" fill="url(#y-blade)" data-page-node-id="FFzlCU9JdNbhEpf2yYQXNM"/>
+          <rect x="-9" y="8" width="18" height="5" rx="2.5" fill="#c3d9f5" data-page-node-id="iw12Ts8uiCcy0Lpstg1yxw"/>
+          <rect x="-2.5" y="13" width="5" height="11" rx="2.5" fill="#6688bb" data-page-node-id="cME8ritGv2bZVCxvD68pJh"/>
+          <circle cx="0" cy="27" r="3" fill="#d9eeff" data-page-node-id="JrfyWZPRUQ5M50CUXrPscK"/>
+        </g></g>
+        <g transform="rotate(270 120 128)" data-page-node-id="GxSavWPZWh7mhPadTMKvmu"><g transform="translate(120,36)" data-page-node-id="VIRdXJZgJqlHEtiakH16Xd">
+          <polygon points="-3.5,8 3.5,8 2,-22 0,-28 -2,-22" fill="url(#y-blade)" data-page-node-id="6CqVQJigBVDJfZYLVscUcT"/>
+          <rect x="-9" y="8" width="18" height="5" rx="2.5" fill="#c3d9f5" data-page-node-id="o6hugXHVVZWliswD2rg3Ik"/>
+          <rect x="-2.5" y="13" width="5" height="11" rx="2.5" fill="#6688bb" data-page-node-id="4M7obBuaucwmQHFlA5XFBR"/>
+          <circle cx="0" cy="27" r="3" fill="#d9eeff" data-page-node-id="2Kdc3ptF2uM2ZtLT3TVcTF"/>
+        </g></g>
+        <g transform="rotate(315 120 128)" data-page-node-id="JivbDNsQlHXZNSrrulaIz1"><g transform="translate(120,36)" data-page-node-id="peIhEzcFY8XQF1W15CoAqf">
+          <polygon points="-3.5,8 3.5,8 2,-22 0,-28 -2,-22" fill="url(#y-blade)" data-page-node-id="3iePlWtMHmlycNeqfvyyUJ"/>
+          <rect x="-9" y="8" width="18" height="5" rx="2.5" fill="#c3d9f5" data-page-node-id="PXmuB7HZJr8nW5hQUWxFOD"/>
+          <rect x="-2.5" y="13" width="5" height="11" rx="2.5" fill="#6688bb" data-page-node-id="1xMnAwFb8GtlQnIA6TELyR"/>
+          <circle cx="0" cy="27" r="3" fill="#d9eeff" data-page-node-id="SuV5BvHx0ZWIn6Edo3xSVp"/>
+        </g></g>
+      </g>
+      </g>
+    </g>
+
+    <!-- 身后垂落长发 -->
+    <g id="back-hair" fill="#3f4d70" data-page-node-id="RQDb2FMFomHhYr5W9p7sX6">
+      <path d="M84 74 Q68 128 76 184 Q92 156 94 100 Z" data-page-node-id="mizcwQIPKuypEuJHawI1Wi"/>
+      <path d="M156 74 Q172 128 164 184 Q148 156 146 100 Z" data-page-node-id="V0vLpMiiazyR61x0wRGVIX"/>
+    </g>
+
+    <g class="y-bob" data-page-node-id="hXpC0imuSSZgE9Wg8vE0RG">
+      <!-- 复用飞升期衣服轮廓，以元婴期蓝白色重绘 -->
+      <g id="body" transform="translate(0,17) scale(1,0.85)" data-page-node-id="YZNpJ6TIJXZQeIhmwRFPML">
+        <path d="M92 128 Q58 118 36 128 Q42 146 66 148 Q82 146 94 142 Z" fill="url(#y-robe)"/>
+        <path d="M92 128 Q58 118 36 128" fill="none" stroke="#789bd2" stroke-width="2.5"/>
+        <path d="M148 128 Q182 118 204 128 Q198 146 174 148 Q158 146 146 142 Z" fill="url(#y-robe)"/>
+        <path d="M148 128 Q182 118 204 128" fill="none" stroke="#789bd2" stroke-width="2.5"/>
+        <circle cx="40" cy="134" r="7.5" fill="url(#y-skin)"/>
+        <circle cx="200" cy="134" r="7.5" fill="url(#y-skin)"/>
+        <path d="M88 124 Q120 112 152 124 Q164 172 150 206 Q120 220 90 206 Q76 172 88 124 Z" fill="url(#y-robe)"/>
+        <path d="M92 196 Q120 210 148 196" fill="none" stroke="#789bd2" stroke-width="3"/>
+        <path d="M110 118 L124 142 M130 118 L116 142" stroke="#668ac7" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <rect x="92" y="150" width="56" height="12" rx="6" fill="#4b68a2"/>
+        <rect x="112" y="150" width="16" height="12" fill="#e8cb88"/>
+        <circle class="y-breathe" cx="120" cy="168" r="12" fill="url(#y-glow)"/>
+        <path d="M120 162 L123 168 L120 174 L117 168 Z" fill="#8fb7e8"/>
+        <path d="M102 178 L103.5 182 L108 183.5 L103.5 185 L102 189 L100.5 185 L96 183.5 L100.5 182 Z" fill="#a9c7ee"/>
+        <path d="M139 174 L140.3 177.7 L144 179 L140.3 180.3 L139 184 L137.7 180.3 L134 179 L137.7 177.7 Z" fill="#a9c7ee"/>
+      </g>
+
+      <!-- 头（沉稳威严） -->
+      <g id="head" data-page-node-id="9nfPkR2Q2e9jy3mI3NwP7B">
+            <circle cx="76" cy="98" r="8" fill="url(#y-skin)" data-page-node-id="ow5PpUd12Z4t7RxrxdSIye"/>
+            <circle cx="164" cy="98" r="8" fill="url(#y-skin)" data-page-node-id="SKMUzGxEBFtfKd1f0JfQln"/>
+            <circle cx="120" cy="94" r="42" fill="url(#y-skin)" data-page-node-id="delKgQ2GmWGq23kdPqPNVX"/>
+            <path d="M82 104 Q90 128 120 134 Q150 128 158 104 Q150 124 120 128 Q90 124 82 104 Z" fill="#f2b98f" opacity=".35" data-page-node-id="umQp3F9u69aZ124r6H1Pbf"/>
+            <!-- 高马尾 -->
+            <g id="hair" data-page-node-id="yKP3LGjOdbfnlWMxn2HifN">
+              <path d="M79 92 Q75 48 120 46 Q165 48 161 92 Q154 66 120 64 Q86 66 79 92 Z" fill="#3a4460" data-page-node-id="YAhJ7ud1GxINREUy2mC3S3"/>
+              <path d="M83 86 Q76 110 82 128 Q90 112 88 90 Z" fill="#3a4460" data-page-node-id="uJc2oMJGwy0BARD4sTE9ud"/>
+              <path d="M157 86 Q164 110 158 128 Q150 112 152 90 Z" fill="#3a4460" data-page-node-id="rTEE3CyQLy6HsOGuU5zGri"/>
+              <g class="y-tail" data-page-node-id="W7mwYuc6z0z2VVcC6UzpvL">
+                <path d="M120 48 Q128 20 148 14 Q138 34 132 50 Z" fill="#3a4460" data-page-node-id="w15k573inYMQnECPJspAH3"/>
+                <circle cx="122" cy="46" r="6" fill="#8fe3cf" data-page-node-id="RJGF4VkkvRXmgBT82Nw2PH"/>
+                <path d="M126 44 L142 36" stroke="#f0cf7a" stroke-width="3" stroke-linecap="round" data-page-node-id="C1EyjnjC8Ya8stJHvIGvao"/>
+              </g>
+            </g>
+            <!-- 五官：自信 -->
+            <g id="face" data-page-node-id="LHSbMFz0ruFXQ6lX4SXqvH">
+              <path d="M94 84 Q103 79 112 84" fill="none" stroke="#3a4460" stroke-width="4" stroke-linecap="round" data-page-node-id="3qtuGYnro8WE8Q5oFPtA5C"/>
+              <path d="M128 84 Q137 79 146 84" fill="none" stroke="#3a4460" stroke-width="4" stroke-linecap="round" data-page-node-id="s8fxuBH8FcejDRCp3FMEB5"/>
+              <path d="M96 102 Q103 96 110 102" fill="none" stroke="#33363f" stroke-width="4" stroke-linecap="round" data-page-node-id="BtSeTo8ANyDEULCPg7jkQ9"/>
+              <path d="M130 102 Q137 96 144 102" fill="none" stroke="#33363f" stroke-width="4" stroke-linecap="round" data-page-node-id="w4UNGTFQsZnU24qLP0JHpn"/>
+              <path d="M109 120 Q120 128 131 120" fill="none" stroke="#454a56" stroke-width="3.5" stroke-linecap="round" data-page-node-id="nv50YQtdFKoqkioQs9YBri"/>
+              <ellipse cx="92" cy="111" rx="8" ry="4.5" fill="#ffab9c" opacity=".5" data-page-node-id="CybVpl4Q3P5FaLnbE00AV3"/>
+              <ellipse cx="148" cy="111" rx="8" ry="4.5" fill="#ffab9c" opacity=".5" data-page-node-id="DV06zAq8k9aA5iwCcQE5T3"/>
+            </g>
+          </g>
+    </g>
+  </svg>

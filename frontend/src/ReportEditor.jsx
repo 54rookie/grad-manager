@@ -8,7 +8,7 @@ const IMAGE_TOKEN = /!\[([^\]\n]*)\]\(attachment:(pending-[a-z0-9-]+|\d+)\)/g
 const ReportEditor = forwardRef(function ReportEditor({ value, attachments, pending, placeholder, onChange, onRemoveImage, toast }, ref) {
   const editorRef = useRef(null)
   const rangeRef = useRef(null)
-  const urlsRef = useRef([])
+  const urlsRef = useRef(new Map())
   const mountedRef = useRef(false)
   const callbacksRef = useRef({ onChange, onRemoveImage, toast })
   callbacksRef.current = { onChange, onRemoveImage, toast }
@@ -23,7 +23,15 @@ const ReportEditor = forwardRef(function ReportEditor({ value, attachments, pend
   }
 
   const serialize = () => [...(editorRef.current?.childNodes || [])].map(serializeNode).join('')
-  const publish = () => callbacksRef.current.onChange(serialize())
+  const publish = () => {
+    for (const [figure, url] of urlsRef.current) {
+      if (!figure.isConnected) {
+        URL.revokeObjectURL(url)
+        urlsRef.current.delete(figure)
+      }
+    }
+    callbacksRef.current.onChange(serialize())
+  }
 
   const rememberRange = () => {
     const selection = window.getSelection()
@@ -83,13 +91,13 @@ const ReportEditor = forwardRef(function ReportEditor({ value, attachments, pend
 
     if (file) {
       const url = URL.createObjectURL(file)
-      urlsRef.current.push(url)
+      urlsRef.current.set(figure, url)
       image.src = url
     } else if (path) {
       api.fileBlob(path).then((blob) => {
         const url = URL.createObjectURL(blob)
         if (mountedRef.current && figure.isConnected) {
-          urlsRef.current.push(url)
+          urlsRef.current.set(figure, url)
           image.src = url
         } else URL.revokeObjectURL(url)
       }).catch((error) => { if (figure.isConnected) callbacksRef.current.toast(error.message, 'error') })
@@ -121,8 +129,8 @@ const ReportEditor = forwardRef(function ReportEditor({ value, attachments, pend
     if (root.lastChild?.dataset?.reportImage) root.appendChild(document.createTextNode('\n\u200B'))
     return () => {
       mountedRef.current = false
-      urlsRef.current.forEach(URL.revokeObjectURL)
-      urlsRef.current = []
+      urlsRef.current.forEach((url) => URL.revokeObjectURL(url))
+      urlsRef.current.clear()
     }
     // This editor owns its DOM until it is unmounted (including when switching to preview).
     // eslint-disable-next-line react-hooks/exhaustive-deps

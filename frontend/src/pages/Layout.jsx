@@ -3,7 +3,6 @@ import { Outlet } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
-import Pelican from '../pelican'
 import { BannerProvider } from '../banner'
 
 export default function Layout() {
@@ -63,14 +62,6 @@ export default function Layout() {
           </main>
         </div>
       </BannerProvider>
-
-      {/* 鹈鹕三只分别挂在三处：
-          · ride-a → GlobalBanner 的 .pg-gb 里，骑着 Banner 分隔虚线（随文档滚动）
-          · ride-b → Progress 页的 .chart 里，贴着图表最上方那条虚线骑
-          · ride-c → 这里，fixed 固定层，始终可见 */}
-      <div className="ride-layer" aria-hidden="true">
-        <div className="ride ride-c"><Pelican speed={0.7} /></div>
-      </div>
 
       {/* 修改密码弹窗 */}
       {pwdOpen && (

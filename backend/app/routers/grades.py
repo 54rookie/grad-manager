@@ -1,10 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import or_
 from sqlmodel import Session, select
 
 from ..auth import get_current_user, require_teacher
 from ..database import get_session
-from ..models import User, Grade
+from ..models import (
+    User, Grade, ThesisProject, ReportAscension, ThesisRound, WeeklyReport, ReportAttachment,
+    ReportComment, Question, Reply, Announcement, AnnouncementAttachment, Message, Link,
+)
+from ..uploads import delete_upload
 
 router = APIRouter(prefix="/api", tags=["grades-users"])
 
@@ -120,6 +125,47 @@ def delete_user(uid: int, session: Session = Depends(get_session), _: User = Dep
     u = session.get(User, uid)
     if not u:
         raise HTTPException(404, "用户不存在")
-    session.delete(u)
-    session.commit()
+    if u.role == "teacher" and session.exec(select(User.id).where(
+        User.role == "teacher", User.id != uid
+    )).first() is None:
+        raise HTTPException(400, "不能删除最后一个老师账号")
+
+    projects = session.exec(select(ThesisProject).where(ThesisProject.student_id == uid)).all()
+    ascensions = session.exec(select(ReportAscension).where(ReportAscension.student_id == uid)).all()
+    reports = session.exec(select(WeeklyReport).where(WeeklyReport.student_id == uid)).all()
+    questions = session.exec(select(Question).where(Question.author_id == uid)).all()
+    announcements = session.exec(select(Announcement).where(Announcement.author_id == uid)).all()
+
+    rounds = session.exec(select(ThesisRound).where(ThesisRound.project_id.in_([p.id for p in projects]))).all()
+    report_files = session.exec(select(ReportAttachment).where(ReportAttachment.report_id.in_([r.id for r in reports]))).all()
+    comments = session.exec(select(ReportComment).where(or_(
+        ReportComment.author_id == uid, ReportComment.report_id.in_([r.id for r in reports])
+    ))).all()
+    replies = session.exec(select(Reply).where(or_(
+        Reply.author_id == uid, Reply.question_id.in_([q.id for q in questions])
+    ))).all()
+    announcement_files = session.exec(select(AnnouncementAttachment).where(
+        AnnouncementAttachment.announcement_id.in_([a.id for a in announcements])
+    )).all()
+    messages = session.exec(select(Message).where(or_(Message.from_id == uid, Message.to_id == uid))).all()
+    links = session.exec(select(Link).where(Link.created_by == uid)).all()
+
+    stored_files = {
+        name for r in rounds for name in (r.student_file, r.teacher_file) if name
+    } | {a.stored_name for a in report_files} | {a.stored_name for a in announcement_files}
+
+    try:
+        for row in (*rounds, *ascensions, *report_files, *comments, *replies, *announcement_files, *messages, *links):
+            session.delete(row)
+        session.flush()
+        for row in (*projects, *reports, *questions, *announcements):
+            session.delete(row)
+        session.flush()
+        session.delete(u)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    for stored in stored_files:
+        delete_upload(stored)
     return {"ok": True}

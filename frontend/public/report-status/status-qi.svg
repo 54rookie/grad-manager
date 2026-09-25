@@ -1,0 +1,100 @@
+<svg id="status-qi" viewBox="0 0 240 280" xmlns="http://www.w3.org/2000/svg" data-page-node-id="acPOHQ42aQE9FF3HZAet18">
+    <defs data-page-node-id="a6nqAW4v2AEjpUCoKQxEqb">
+      <linearGradient id="q-skin" x1="0" y1="0" x2="0" y2="1" data-page-node-id="kURLKabG1JjPkhYci7gox4">
+        <stop offset="0" stop-color="#ffeedd" data-page-node-id="tyLqFBwHG3HWIOsfyAEziV"/><stop offset="1" stop-color="#ffdab9" data-page-node-id="6m1HFrK6XVgjM5izAI7y6Q"/>
+      </linearGradient>
+      <linearGradient id="q-robe" x1="0" y1="0" x2="0" y2="1" data-page-node-id="3dnD8Rr8SMtqEPN8l7xauV">
+        <stop offset="0" stop-color="#f6fcfa" data-page-node-id="OmIIqRxRYwE3qcSWo2m0gF"/><stop offset="1" stop-color="#c2e6d8" data-page-node-id="SYyNRsUU9JEO0rWWd4vLyj"/>
+      </linearGradient>
+      <radialGradient id="q-glow" cx=".5" cy=".5" r=".5" data-page-node-id="LQveay8DfXAvUB3Y2cn8Jm">
+        <stop offset="0" stop-color="#b8ffe4" data-page-node-id="zhQJE9WjMLWTBVFy1GjGsZ"/><stop offset="1" stop-color="#b8ffe4" stop-opacity="0" data-page-node-id="y4T81rKppJIAg23KWjDIGp"/>
+      </radialGradient>
+      <style>
+        .q-shiver{animation:q-shiver .6s ease-in-out infinite}
+        @keyframes q-shiver{0%,100%{transform:translateX(0)}25%{transform:translateX(-.8px)}75%{transform:translateX(.8px)}}
+        .q-sweat{animation:q-sweat 2.4s ease-in infinite}
+        @keyframes q-sweat{0%{transform:translateY(0);opacity:0}15%{opacity:1}75%{transform:translateY(15px);opacity:1}100%{transform:translateY(21px);opacity:0}}
+        .q-aura{transform-box:fill-box;transform-origin:center;animation:q-aura 2.8s ease-in-out infinite}
+        @keyframes q-aura{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.6;transform:scale(1.07)}}
+        .q-fly1{animation:q-fly1 4s ease-in-out infinite alternate}
+        .q-fly2{animation:q-fly2 5s ease-in-out infinite alternate}
+        @keyframes q-fly1{from{transform:translate(0,0)}to{transform:translate(10px,-13px)}}
+        @keyframes q-fly2{from{transform:translate(0,0)}to{transform:translate(-11px,-8px)}}
+        .q-sprout{transform-box:fill-box;transform-origin:bottom center;animation:q-sprout 2.2s ease-in-out infinite}
+        @keyframes q-sprout{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(7deg)}}
+      </style>
+    </defs>
+
+    <!-- 微弱灵气 -->
+    <g id="aura" data-page-node-id="cSCZEDJe0o85rduXMyQnny">
+      <ellipse class="q-aura" cx="120" cy="238" rx="52" ry="9" fill="#a8ecd4" data-page-node-id="lrPigoZeftH8zsNH8oveLN"/>
+      <g class="q-fly1" data-page-node-id="L3re6Us9IzaLdG1ssM5AGG"><circle cx="56" cy="158" r="8" fill="url(#q-glow)" data-page-node-id="RertB6do8kJopcRYv7wQj4"/><circle cx="56" cy="158" r="2.6" fill="#d4fff2" data-page-node-id="AzAeWqrlpI2HAahiYQwhfu"/></g>
+      <g class="q-fly2" data-page-node-id="cRzPDVtNDADIKIEWtX7EKU"><circle cx="186" cy="136" r="7" fill="url(#q-glow)" data-page-node-id="ezhXos2qi0JSGmmAOu8V0S"/><circle cx="186" cy="136" r="2.2" fill="#d4fff2" data-page-node-id="eFWCdYC2JgrfJhGPrGNsZH"/></g>
+    </g>
+
+    <g class="q-shiver" data-page-node-id="oYdiMIpxl7LRQaDS0Gm7Io">
+      <!-- 背后负着的圆头木剑 -->
+      <g id="weapon" transform="translate(84,150) rotate(-22)" data-page-node-id="iufwNrdURsKB1B1U0mCj7x">
+        <path d="M-6 0 L6 0 L4 -54 Q0 -63 -4 -54 Z" fill="#d9ab7a" data-page-node-id="eSHxBXyBMCyqXoigakqiXN"/>
+        <path d="M0 -61 L4 -54 L6 0 L0 0 Z" fill="#c1915c" data-page-node-id="KtxfvwuAwEHzEL5kh2ed8B"/>
+        <rect x="-9" y="0" width="18" height="7" rx="3.5" fill="#9c7245" data-page-node-id="0FFjMIkW9uLN54OFK4WDUS"/>
+        <rect x="-3.5" y="7" width="7" height="18" rx="3.5" fill="#8a6238" data-page-node-id="UXlxwSUQ0ymzp8cdEKoVBG"/>
+      </g>
+
+      <!-- 宽袍（遮住手脚） -->
+      <g id="body" data-page-node-id="DHE7xOeElSdmQMDPv2YBEr">
+        <path d="M92 148 Q120 136 148 148 Q165 188 169 226 Q120 240 71 226 Q75 188 92 148 Z" fill="url(#q-robe)" data-page-node-id="EKbnlyc84gCpf3St32c9vr"/>
+        <path d="M169 226 Q120 240 71 226 L73 216 Q120 229 167 216 Z" fill="#a8d4c2" opacity=".65" data-page-node-id="cyj4kkQoKIghdEGg2iWm8G"/>
+        <!-- 交领 -->
+        <path d="M108 144 L124 170" stroke="#ffffff" stroke-width="7" fill="none" stroke-linecap="round" data-page-node-id="cxwvGQBWN1rbUkBxUHL8bh"/>
+        <path d="M132 144 L116 170" stroke="#eaf6f0" stroke-width="7" fill="none" stroke-linecap="round" data-page-node-id="bGPtmOZdPbGbfeCZh8uP7r"/>
+        <path d="M108 144 L124 170" stroke="#7fbfae" stroke-width="2" fill="none" stroke-linecap="round" data-page-node-id="PpZUMWE1EZFE9NlMmFTeJA"/>
+        <!-- 垂落大袖（盖住双手） -->
+        <path d="M94 152 Q70 164 66 194 Q70 208 86 205 Q96 190 100 166 Z" fill="#e8f5ef" data-page-node-id="mqdZ1SRcJNpGBD23QmFvKs"/>
+        <path d="M70 198 Q78 203 86 200" fill="none" stroke="#a8d4c2" stroke-width="2.5" stroke-linecap="round" data-page-node-id="qPkcLWMUqG6WG9sZnPFymm"/>
+        <path d="M146 152 Q170 164 174 194 Q170 208 154 205 Q144 190 140 166 Z" fill="#e8f5ef" data-page-node-id="S9UM4yAEJdV4zsrLjpaFUb"/>
+        <path d="M170 198 Q162 203 154 200" fill="none" stroke="#a8d4c2" stroke-width="2.5" stroke-linecap="round" data-page-node-id="pCFJHkL8bp0YPwn3qoMxXy"/>
+        <!-- 腰带蝴蝶结 -->
+        <rect x="82" y="186" width="76" height="11" rx="5.5" fill="#8fd0bc" data-page-node-id="CT2SDXAPedNHwvBREQ4DWq"/>
+        <path d="M120 191 L108 184 Q104 191 108 198 Z" fill="#6bbd9f" data-page-node-id="Mfbvpj9ZSTNfy6BHGIKSwL"/>
+        <path d="M120 191 L132 184 Q136 191 132 198 Z" fill="#6bbd9f" data-page-node-id="PaX6pYZYN77tGf064dh7t5"/>
+        <circle cx="120" cy="191" r="4.5" fill="#5aa88c" data-page-node-id="R0ZXeYhgtkG99noKrDWQom"/>
+      </g>
+
+      <!-- 头（萌脸保留） -->
+      <g id="head" data-page-node-id="nrSsiHCKrsL6zBcWBaxmcj">
+        <circle cx="74" cy="100" r="8" fill="url(#q-skin)" data-page-node-id="RGul8IhwaEWoh1jU53ulIQ"/>
+        <circle cx="166" cy="100" r="8" fill="url(#q-skin)" data-page-node-id="d4Hrjnm9HDgdVx5Gwa4S2J"/>
+        <circle cx="120" cy="96" r="44" fill="url(#q-skin)" data-page-node-id="KoStVANPEFRBqcWijGkUzT"/>
+        <path d="M80 106 Q88 132 120 138 Q152 132 160 106 Q152 128 120 132 Q88 128 80 106 Z" fill="#f5bd93" opacity=".4" data-page-node-id="fNMmt5gCwOP03GnUm5BzpJ"/>
+        <g id="hair" data-page-node-id="KG5BXRnW8wbjDycdwnAeiW">
+          <path d="M77 94 Q73 48 120 46 Q167 48 163 94 Q158 74 148 70 Q150 80 144 84 Q140 70 128 66 Q132 76 126 80 Q122 68 110 66 Q112 76 104 80 Q102 70 92 70 Q82 74 77 94 Z" fill="#574f5c" data-page-node-id="0JyAtu1eZsir87pWnpz4Gt"/>
+          <path d="M79 88 Q72 104 78 118 Q84 106 84 92 Z" fill="#574f5c" data-page-node-id="kdECrmrN28t2pJO0C46cX6"/>
+          <path d="M161 88 Q168 104 162 118 Q156 106 156 92 Z" fill="#574f5c" data-page-node-id="uo96B5oEWvrJLwD7wAR5op"/>
+        </g>
+        <g class="q-sprout" data-page-node-id="w8b9Dycujxt07UgYPXh9AI">
+          <path d="M120 48 Q120 36 120 30" stroke="#5aa860" stroke-width="3.5" fill="none" stroke-linecap="round" data-page-node-id="K7CR4WvOBlVctDKsnV79UU"/>
+          <ellipse cx="111" cy="28" rx="10" ry="5.5" fill="#7bc96f" transform="rotate(-28 111 28)" data-page-node-id="LLgTvIUPmSuPDIIJnMFb5w"/>
+          <ellipse cx="129" cy="28" rx="10" ry="5.5" fill="#8fd77f" transform="rotate(28 129 28)" data-page-node-id="PE3UREthx5XuGQnWa2aIxB"/>
+        </g>
+        <g id="face" data-page-node-id="RFNlZB33kudrVE8nH8iHhD">
+          <path d="M94 84 Q102 79 111 83" fill="none" stroke="#574f5c" stroke-width="4" stroke-linecap="round" data-page-node-id="lxNJtAtRczb8S06gAVtn4l"/>
+          <path d="M129 83 Q138 79 146 84" fill="none" stroke="#574f5c" stroke-width="4" stroke-linecap="round" data-page-node-id="mKFV10mc3HCwqs7SadqWGE"/>
+          <ellipse cx="103" cy="102" rx="7" ry="9.5" fill="#3a3644" data-page-node-id="ZsyXwVL56GaTJWe0U9SPbh"/>
+          <ellipse cx="137" cy="102" rx="7" ry="9.5" fill="#3a3644" data-page-node-id="L8dOXqFftAUbm5vrs6fgeM"/>
+          <circle cx="105.5" cy="98" r="2.8" fill="#fff" data-page-node-id="cLmtbYV1iLVxz8nAPqHjNW"/>
+          <circle cx="139.5" cy="98" r="2.8" fill="#fff" data-page-node-id="1guhb6AtxlNAATdrfAcowU"/>
+          <circle cx="101" cy="105" r="1.3" fill="#fff" opacity=".9" data-page-node-id="KurPFzlb9b6gkXGxtVhbb5"/>
+          <circle cx="135" cy="105" r="1.3" fill="#fff" opacity=".9" data-page-node-id="zCRxj03VanXvqnWzAJK2NJ"/>
+          <path d="M98 108 Q103 111 108 108" fill="none" stroke="#bfe6ff" stroke-width="2" stroke-linecap="round" opacity=".8" data-page-node-id="ZmFuR35qsd3LioijkbgKcz"/>
+          <path d="M132 108 Q137 111 142 108" fill="none" stroke="#bfe6ff" stroke-width="2" stroke-linecap="round" opacity=".8" data-page-node-id="6m2yhl7Bk0noHAGE5NuLyI"/>
+          <path d="M113 125 Q117 122 120 125 Q123 128 127 125" fill="none" stroke="#574f5c" stroke-width="3" stroke-linecap="round" data-page-node-id="37QcezLAfZ0N9GvKvx8oMa"/>
+          <ellipse cx="91" cy="114" rx="9" ry="5" fill="#ffab9c" opacity=".55" data-page-node-id="w3QEKnM3u4oxeUnDW6shXc"/>
+          <ellipse cx="149" cy="114" rx="9" ry="5" fill="#ffab9c" opacity=".55" data-page-node-id="Xz1t7mSs3pCQ5kAR5WlQHi"/>
+          <g class="q-sweat" data-page-node-id="YQtOulJCAswDvt71wkVz2t">
+            <path d="M164 82 Q169 92 164 95 Q159 92 164 82 Z" fill="#9edcff" data-page-node-id="FnM9AHpBH6MdjZBrPSfh9C"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </svg>

@@ -118,6 +118,14 @@ class ThesisProject(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ReportAscension(SQLModel, table=True):
+    """基础节点完成期间免交周报的周次区间；撤销完成后保留历史。"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    student_id: int = Field(foreign_key="user.id", index=True)
+    start_week: str
+    end_week: Optional[str] = None
+
+
 class Message(SQLModel, table=True):
     """老师发给指定学生的定向消息（一键催办 / 提醒）"""
     id: Optional[int] = Field(default=None, primary_key=True)

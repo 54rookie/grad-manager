@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { useToast } from '../toast'
 import { Modal } from '../components'
@@ -20,6 +20,12 @@ export default function Accounts() {
   const [grades, setGrades] = useState([])
   const [modal, setModal] = useState(null) // {mode:'add'} | {mode:'edit', user}
   const [form, setForm] = useState(EMPTY_FORM)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteStep, setDeleteStep] = useState(1)
+  const [impactAcknowledged, setImpactAcknowledged] = useState(false)
+  const [deleteUsername, setDeleteUsername] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const deleteRequestRef = useRef(false)
 
   const load = async () => {
     try {
@@ -66,13 +72,32 @@ export default function Accounts() {
     } catch (e) { toast(e.message, 'error') }
   }
 
-  const remove = async (u) => {
-    if (!window.confirm(`确定删除账号「${u.name}（${u.username}）」？`)) return
+  const remove = (u) => {
+    if (u.role === 'teacher' && users.filter((item) => item.role === 'teacher').length === 1) {
+      toast('不能删除最后一个老师账号', 'error')
+      return
+    }
+    setDeleteTarget(u)
+    setDeleteStep(1)
+    setImpactAcknowledged(false)
+    setDeleteUsername('')
+  }
+
+  const confirmDelete = async () => {
+    if (deleteStep === 1) { setDeleteStep(2); return }
+    if (deleteStep === 2) { if (impactAcknowledged) setDeleteStep(3); return }
+    if (!deleteTarget || deleteRequestRef.current || deleteUsername !== deleteTarget.username) return
+    deleteRequestRef.current = true
+    setDeleting(true)
     try {
-      await api.del(`/users/${u.id}`)
+      await api.del(`/users/${deleteTarget.id}`)
+      setDeleteTarget(null)
       toast('账号已删除', 'success')
-      load()
-    } catch (e) { toast(e.message, 'error') }
+      await load()
+    } catch (e) { toast(e.message, 'error') } finally {
+      deleteRequestRef.current = false
+      setDeleting(false)
+    }
   }
 
   return (
@@ -154,6 +179,68 @@ export default function Accounts() {
             <button className="btn-primary" onClick={save}>保存</button>
           </div>
         </Modal>
+      )}
+      {deleteTarget && (
+        <div className="modal-mask account-delete-mask" onClick={() => { if (!deleting) setDeleteTarget(null) }}>
+          <section key={deleteStep} className={`modal account-delete-dialog account-delete-step-${deleteStep}`}
+            role="alertdialog" aria-modal="true" aria-labelledby="account-delete-title"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="account-delete-progress" aria-label={`删除确认第 ${deleteStep} 步，共 3 步`}>
+              {[1, 2, 3].map((step) => <span key={step} className={step === deleteStep ? 'current' : step < deleteStep ? 'done' : ''}>{step}</span>)}
+            </div>
+
+            {deleteStep === 1 && <>
+              <div className="account-delete-kicker">第一步 · 核对账号</div>
+              <h3 id="account-delete-title">请确认要删除的成员</h3>
+              <div className="account-delete-identity">
+                <strong>{deleteTarget.name}</strong>
+                <span>{deleteTarget.role === 'teacher' ? '老师' : '学生'} · 用户名 {deleteTarget.username}</span>
+                {deleteTarget.student_no && <span>学号 {deleteTarget.student_no}</span>}
+              </div>
+              <p>请先核对姓名和用户名，确保选中的是正确账号。此时不会发送删除请求。</p>
+            </>}
+
+            {deleteStep === 2 && <>
+              <div className="account-delete-kicker">第二步 · 核对影响</div>
+              <h3 id="account-delete-title">这些资料会一起删除</h3>
+              <ul className="account-delete-impact">
+                <li>论文项目、往返记录与上传的文件</li>
+                <li>周报、正文图片、附件与点评</li>
+                <li>问答、回复和收发消息</li>
+                {deleteTarget.role === 'teacher' && <li>发布的公告、公告附件和链接</li>}
+              </ul>
+              <label className="account-delete-ack">
+                <input type="checkbox" checked={impactAcknowledged}
+                  onChange={(e) => setImpactAcknowledged(e.target.checked)} />
+                <span>我明白关联记录和附件也会被永久删除</span>
+              </label>
+              <p className="account-delete-wait">进入下一步仍不会删除数据。</p>
+            </>}
+
+            {deleteStep === 3 && <>
+              <div className="account-delete-kicker">第三步 · 高危操作</div>
+              <h3 id="account-delete-title">删除后无法恢复</h3>
+              <p>即将永久删除 <strong>{deleteTarget.name}</strong> 及上一步列出的关联资料。</p>
+              <label className="account-delete-type">
+                <span>请输入完整用户名 <strong>{deleteTarget.username}</strong> 以确认</span>
+                <input autoFocus value={deleteUsername} autoComplete="off"
+                  onChange={(e) => setDeleteUsername(e.target.value)}
+                  placeholder="输入用户名后才能删除" />
+              </label>
+            </>}
+
+            <div className="modal-actions">
+              <button type="button" className="btn-ghost" disabled={deleting}
+                onClick={() => setDeleteTarget(null)}>取消</button>
+              {deleteStep > 1 && <button type="button" className="btn-ghost" disabled={deleting}
+                onClick={() => setDeleteStep(deleteStep === 3 ? 2 : 1)}>上一步</button>}
+              <button type="button" className="account-delete-next" disabled={deleting || (deleteStep === 2 && !impactAcknowledged) || (deleteStep === 3 && deleteUsername !== deleteTarget.username)}
+                onClick={confirmDelete}>
+                {deleting ? '正在删除…' : deleteStep === 1 ? '账号无误，查看影响' : deleteStep === 2 ? '我已了解，进入最终确认' : '永久删除账号和资料'}
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   )

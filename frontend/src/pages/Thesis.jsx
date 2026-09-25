@@ -30,6 +30,7 @@ function stageClass(stage = '') {
    库里存在「修改」这类不在 STAGES 里的历史值，选项要把当前值兜住，否则一打开就丢。 */
 const STAGES = ['开题', '初稿', '中期', '查重', '送审', '答辩', '完成']
 const stageOptions = (cur) => (cur && !STAGES.includes(cur) ? [...STAGES, cur] : STAGES)
+const MAX_FILE_BYTES = 20 * 1024 * 1024
 
 const fmt = (t) => (t ? new Date(t).toLocaleString('zh-CN', { hour12: false }) : '—')
 
@@ -148,6 +149,7 @@ export default function Thesis() {
     setTimeout(() => rip.remove(), 700)
 
     if (!replyText.trim() && !replyFile) return toast('先写点批注意见再提交哦', 'error')
+    if (replyFile?.size > MAX_FILE_BYTES) return toast('单个附件不能超过 20 MB', 'error')
     setSending(true)
     try {
       const fd = new FormData()
@@ -166,6 +168,7 @@ export default function Thesis() {
   /* ---------- 学生：提交新一轮 ---------- */
   const submitRound = async () => {
     if (!submitText.trim() && !submitFile) return toast('请填写说明或上传附件', 'error')
+    if (submitFile?.size > MAX_FILE_BYTES) return toast('单个附件不能超过 20 MB', 'error')
     setSending(true)
     try {
       const fd = new FormData()
@@ -193,6 +196,7 @@ export default function Thesis() {
     if (!submitText.trim() && !submitFile && !(keepFile && latest?.student_file)) {
       return toast('请填写说明或上传附件', 'error')
     }
+    if (submitFile?.size > MAX_FILE_BYTES) return toast('单个附件不能超过 20 MB', 'error')
     setSending(true)
     try {
       const fd = new FormData()

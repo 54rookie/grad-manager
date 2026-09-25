@@ -53,6 +53,9 @@ async function request(path, options = {}) {
   if (res.status === 405 && (path === '/announcements/with-attachments' || /^\/reports\/my\/[^/]+\/submit$/.test(path))) {
     throw new Error('后端尚未加载新的附件接口，请重启 5183 后端服务并刷新页面')
   }
+  if ((res.status === 404 || res.status === 405) && /^\/reports\/semester-stats(?:\?|$)/.test(path)) {
+    throw new Error('后端尚未加载周报统计接口，请重启后端服务并刷新页面，再点击「重试加载」')
+  }
   if (!res.ok) {
     let msg = `请求失败 (${res.status})`
     try {

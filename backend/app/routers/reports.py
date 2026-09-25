@@ -9,7 +9,8 @@ from sqlmodel import Session, select
 
 from ..auth import get_current_user, require_teacher
 from ..database import get_session
-from ..models import User, Grade, WeeklyReport, ReportComment, ReportAttachment, Setting, SEMESTER_CONFIG_KEY
+from ..models import User, Grade, ThesisProject, ReportAscension, WeeklyReport, ReportComment, ReportAttachment, Setting, SEMESTER_CONFIG_KEY
+from ..report_status import ascension_windows, is_ascended_on
 from ..uploads import MAX_FILES, save_upload, delete_upload, upload_path
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -203,6 +204,11 @@ def list_weeks(semester: str | None = None, session: Session = Depends(get_sessi
         started = [w for w in weeks if monday_of(w) <= today]
         default_week = started[-1] if started else weeks[0]
 
+    project = session.exec(select(ThesisProject).where(
+        ThesisProject.student_id == user.id
+    )).first() if user.role == "student" else None
+    exemption_windows = ascension_windows(project, session)
+
     return {
         "current": cur,
         "weeks": weeks,
@@ -214,6 +220,8 @@ def list_weeks(semester: str | None = None, session: Session = Depends(get_sessi
         "start_date": sunday_of(start_week).isoformat(),
         "start_week_custom": custom,
         "default_week": default_week,
+        "ascended_from_week": next((w["start_week"] for w in exemption_windows if w["end_week"] is None), None),
+        "ascension_windows": exemption_windows,
     }
 
 
@@ -235,7 +243,7 @@ def get_report_template(session: Session = Depends(get_session), user: User = De
 def put_report_template(data: ReportTemplateIn, session: Session = Depends(get_session),
                         teacher: User = Depends(require_teacher)):
     if not data.template.strip() or len(data.template) > 4000:
-        raise HTTPException(400, "周报提示须为 1 至 4000 字")
+        raise HTTPException(400, "周报示例须为 1 至 4000 字")
     row = session.get(Setting, REPORT_TEMPLATE_KEY) or Setting(key=REPORT_TEMPLATE_KEY)
     row.value = data.template
     session.add(row)
@@ -414,11 +422,18 @@ def report_attachment(attachment_id: int, session: Session = Depends(get_session
 
 @router.get("/board")
 def board(week: str | None = None, session: Session = Depends(get_session), teacher: User = Depends(require_teacher)):
-    """老师视角：某一周所有学生的提交情况（含未交/逾期标记）"""
+    """老师视角：某一周所有学生的提交情况（含已飞升/未交/逾期标记）。"""
     week = week or current_week()
     students = session.exec(select(User).where(User.role == "student")).all()
     reports = session.exec(select(WeeklyReport).where(WeeklyReport.week == week)).all()
+    projects = session.exec(select(ThesisProject)).all()
+    exemption_rows = session.exec(select(ReportAscension)).all()
     by_student = {r.student_id: r for r in reports}
+    rows_by_student = {}
+    for row in exemption_rows:
+        rows_by_student.setdefault(row.student_id, []).append(row)
+    ascended = {p.student_id: ascension_windows(p, session, rows_by_student.get(p.student_id, []))
+                for p in projects}
     y, w = week.split("-W")
     week_start = date.fromisocalendar(int(y), int(w), 1)
     deadline = week_start + timedelta(days=6)  # 周日截止
@@ -426,7 +441,9 @@ def board(week: str | None = None, session: Session = Depends(get_session), teac
     for s in students:
         grade = session.get(Grade, s.grade_id) if s.grade_id else None
         r = by_student.get(s.id)
-        status = "已交" if r else ("逾期" if date.today() > deadline else "未交")
+        status = "已飞升" if is_ascended_on(ascended.get(s.id, []), week) else (
+            "已交" if r else ("逾期" if date.today() > deadline else "未交")
+        )
         item = {
             "student_id": s.id, "student_name": s.name, "student_no": s.student_no,
             "grade_name": grade.name if grade else "未分组",
@@ -434,6 +451,80 @@ def board(week: str | None = None, session: Session = Depends(get_session), teac
         }
         result.append(item)
     return {"week": week, "deadline": str(deadline), "items": result}
+
+
+def _submission_rate(submitted: int, required: int, population: int) -> int:
+    """全员免交算完成；无学生或尚无开始周时显示 0。"""
+    return (submitted * 200 + required) // (required * 2) if required else (100 if population else 0)
+
+
+@router.get("/semester-stats")
+def semester_stats(semester: str | None = None, session: Session = Depends(get_session),
+                   teacher: User = Depends(require_teacher)):
+    """老师端统计：一次批量读取学期内的提交与免交区间。"""
+    meta = list_weeks(semester=semester, session=session, user=teacher)
+    selected = meta["semester"]
+    started = [w for w in meta["weeks"] if w >= meta["start_week"] and monday_of(w) <= date.today()]
+    this_week = current_week()
+    students = session.exec(select(User).where(User.role == "student")).all()
+    grades = {g.id: g.name for g in session.exec(select(Grade)).all()}
+    projects = {p.student_id: p for p in session.exec(select(ThesisProject)).all()}
+    rows_by_student = {}
+    for row in session.exec(select(ReportAscension)).all():
+        rows_by_student.setdefault(row.student_id, []).append(row)
+    windows = {s.id: ascension_windows(projects.get(s.id), session, rows_by_student.get(s.id, []))
+               for s in students}
+    wanted = set(started) | {this_week}
+    submitted_weeks = set(session.exec(select(WeeklyReport.student_id, WeeklyReport.week).where(
+        WeeklyReport.week.in_(wanted)
+    )).all())
+
+    def blank():
+        return {"required": 0, "submitted": 0, "missing": 0, "overdue": 0, "ascended": 0}
+
+    def add_status(counts, student_id, week):
+        if is_ascended_on(windows[student_id], week):
+            counts["ascended"] += 1
+        else:
+            counts["required"] += 1
+            if (student_id, week) in submitted_weeks:
+                counts["submitted"] += 1
+            elif date.today() > sunday_of(week):
+                counts["overdue"] += 1
+            else:
+                counts["missing"] += 1
+
+    students_out = [{"student_id": s.id, "student_name": s.name, "student_no": s.student_no,
+                     "grade_name": grades.get(s.grade_id, "未分组"), **blank()}
+                    for s in students]
+    by_student = {item["student_id"]: item for item in students_out}
+    weeks_out = []
+    totals = blank()
+    for week in started:
+        counts = blank()
+        for s in students:
+            add_status(counts, s.id, week)
+            add_status(by_student[s.id], s.id, week)
+        for key in totals:
+            totals[key] += counts[key]
+        weeks_out.append({"week": week, **counts,
+                          "rate": _submission_rate(counts["submitted"], counts["required"], len(students))})
+    for item in students_out:
+        item["rate"] = _submission_rate(item["submitted"], item["required"], len(started))
+    totals["rate"] = _submission_rate(totals["submitted"], totals["required"],
+                                      len(students) * len(started))
+    current_counts = blank()
+    for s in students:
+        add_status(current_counts, s.id, this_week)
+    return {
+        "semester": selected,
+        "student_count": len(students), "week_count": len(started),
+        "students": students_out, "weeks": weeks_out,
+        "totals": totals,
+        "current_week": {"week": this_week, **current_counts,
+                         "rate": _submission_rate(current_counts["submitted"],
+                                                  current_counts["required"], len(students))},
+    }
 
 
 @router.get("/student/{sid}")

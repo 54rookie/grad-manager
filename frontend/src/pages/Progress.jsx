@@ -6,6 +6,8 @@ import { useToast } from '../toast'
 import HandDrawnSelect from '../HandDrawnSelect'
 import OrbitRing from '../OrbitRing'
 import Pelican from '../pelican'
+import { isAscendedWeek } from '../reportStatus'
+import { trackProgressSave } from '../progressSave'
 import { useMessages } from '../messages'
 import { usePageBanner } from '../banner'
 
@@ -74,7 +76,7 @@ const basePercent = (nodes) => {
   const base = baseNodesOf(nodes)
   if (!base.length) return 0
   const done = base.filter(isNodeDone).length
-  return Math.max(0, Math.min(100, Math.round((done / base.length) * 100)))
+  return done === base.length ? 100 : Math.min(99, Math.round((done / base.length) * 100))
 }
 
 /* 进阶状态：中论文（金冠）优先于修论文（光环），都未点亮则是常规百分比 */
@@ -261,13 +263,22 @@ export default function Progress() {
       key, label: lb, track: track || 1, plan: plan || null, actual: actual || null,
     }))
     setProjects((list) => list.map((p) => (p.id === project.id ? { ...p, milestones, progress } : p)))
-    clearTimeout(saveTimers.current[project.id])
-    saveTimers.current[project.id] = setTimeout(async () => {
+    const previous = saveTimers.current[project.id]
+    if (previous) { clearTimeout(previous.timer); previous.finish() }
+    let finish
+    trackProgressSave(new Promise((resolve) => { finish = resolve }))
+    const timer = setTimeout(async () => {
+      if (saveTimers.current[project.id]?.timer === timer) delete saveTimers.current[project.id]
       try {
-        await api.put(`/thesis/projects/${project.id}`, { milestones, progress })
+        const saved = await api.put(`/thesis/projects/${project.id}`, { milestones, progress })
+        setProjects((list) => list.map((p) => (p.id === project.id
+          && JSON.stringify(p.milestones) === JSON.stringify(milestones)
+          ? { ...p, ascension_windows: saved.ascension_windows, ascended_from_week: saved.ascended_from_week }
+          : p)))
         toast(label || '时间轴已保存 ✓', 'success')
-      } catch (e) { toast(e.message, 'error') }
+      } catch (e) { toast(e.message, 'error') } finally { finish() }
     }, 550)
+    saveTimers.current[project.id] = { timer, finish }
   }
 
   /* 点击切换节点完成状态。
@@ -733,15 +744,21 @@ export default function Progress() {
                           onClick={() => navigate(`/reports?studentId=${detail.project.student_id}&week=${r.week}`)}>
                           <span className="wk">{r.week}</span>
                           <span className="tx">{(r.content_md || '').replace(/[#*\n]/g, ' ').replace(/-/g, '').trim().slice(0, 30) || '（无内容）'}</span>
-                          <span className="st on">已交</span>
+                          <span className={`st${isAscendedWeek(r.week, cur.ascension_windows) ? ' ascended' : ' on'}`}>
+                            {isAscendedWeek(r.week, cur.ascension_windows) ? '已飞升' : '已交'}
+                          </span>
                         </div>
                       ))}
-                      {detail.reports && detail.reports.length > 0 && !detail.reports.some((r) => r.week === currentWeek) && (
+                      {detail.reports && (detail.reports.length > 0 || isAscendedWeek(currentWeek, cur.ascension_windows))
+                        && !detail.reports.some((r) => r.week === currentWeek) && (
                         <div className="ck jumpable" title="点击进入每周周报"
                           onClick={() => navigate(`/reports?studentId=${detail.project.student_id}&week=${currentWeek}`)}>
                           <span className="wk">{currentWeek}</span>
-                          <span className="tx">本周周报尚未提交</span>
-                          <span className="st miss">缺卡</span>
+                          <span className="tx">{isAscendedWeek(currentWeek, cur.ascension_windows)
+                            ? '基础节点已完成，本周无需提交' : '本周周报尚未提交'}</span>
+                          <span className={`st${isAscendedWeek(currentWeek, cur.ascension_windows) ? ' ascended' : ' miss'}`}>
+                            {isAscendedWeek(currentWeek, cur.ascension_windows) ? '已飞升' : '缺卡'}
+                          </span>
                         </div>
                       )}
                     </div>

@@ -1,5 +1,6 @@
 """Private attachment storage shared by reports and announcements."""
 import uuid
+import logging
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
@@ -8,6 +9,7 @@ from .database import UPLOAD_DIR
 
 MAX_FILE_BYTES = 20 * 1024 * 1024
 MAX_FILES = 10
+logger = logging.getLogger(__name__)
 
 
 def save_upload(file: UploadFile) -> tuple[str, str, str | None]:
@@ -32,12 +34,21 @@ def save_upload(file: UploadFile) -> tuple[str, str, str | None]:
     elif body[4:8] == b"ftyp" and body[8:12] in (b"avif", b"avis"):
         mime = "image/avif"
     stored = uuid.uuid4().hex
-    (UPLOAD_DIR / stored).write_bytes(body)
+    path = UPLOAD_DIR / stored
+    try:
+        path.write_bytes(body)
+    except Exception:
+        delete_upload(stored)
+        raise
     return stored, original, mime
 
 
 def delete_upload(stored: str) -> None:
-    (UPLOAD_DIR / stored).unlink(missing_ok=True)
+    try:
+        (UPLOAD_DIR / stored).unlink(missing_ok=True)
+    except OSError:
+        # 数据库提交后无法回滚；清理失败不能把已成功的请求报告成失败。
+        logger.exception("附件清理失败: %s", stored)
 
 
 def upload_path(stored: str) -> Path:

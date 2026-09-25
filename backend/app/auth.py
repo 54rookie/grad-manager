@@ -1,5 +1,6 @@
 import os
 import secrets
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -36,14 +37,29 @@ def _load_secret_key() -> str:
             existing = path.read_text(encoding="utf-8").strip()
             if existing:
                 return existing
-        key = secrets.token_urlsafe(48)
+            # 修复旧版本留下的空密钥文件，保持原有的自动恢复行为。
+            repaired = secrets.token_urlsafe(48)
+            with path.open("w", encoding="utf-8") as out:
+                os.fchmod(out.fileno(), 0o600)
+                out.write(repaired)
+            return repaired
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(key, encoding="utf-8")
+        key = secrets.token_urlsafe(48)
+        fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
         try:
-            path.chmod(0o600)   # 只有属主可读；失败不影响功能
-        except OSError:
-            pass
-        return key
+            with os.fdopen(fd, "w", encoding="utf-8") as out:
+                out.write(key)
+            try:
+                os.link(temporary, path)
+                return key
+            except FileExistsError:
+                # 完整写好之后才发布密钥；并发启动的进程复用同一份。
+                existing = path.read_text(encoding="utf-8").strip()
+                if not existing:
+                    raise OSError("密钥文件为空")
+                return existing
+        finally:
+            Path(temporary).unlink(missing_ok=True)
     except OSError:
         # 只读文件系统等极端情况：至少不要退回到一个公开已知的常量
         return secrets.token_urlsafe(48)

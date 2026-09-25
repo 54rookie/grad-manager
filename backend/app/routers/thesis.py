@@ -11,10 +11,12 @@ from sqlmodel import Session, select
 
 from ..auth import get_current_user, require_teacher
 from ..database import get_session, UPLOAD_DIR
+from ..uploads import MAX_FILE_BYTES, delete_upload
 from ..models import (
     User, Grade, ThesisProject, ThesisRound, Setting,
     DEFAULT_MILESTONES, DEFAULT_RISK_CONFIG, RISK_LEVELS, RISK_CONFIG_KEY, RISK_TRACK_KEYS,
 )
+from ..report_status import ascended_from_week, ascension_windows, record_ascension_change
 
 router = APIRouter(prefix="/api/thesis", tags=["thesis"])
 
@@ -22,9 +24,35 @@ router = APIRouter(prefix="/api/thesis", tags=["thesis"])
 def save_upload(f: UploadFile) -> tuple[str, str]:
     ext = Path(f.filename or "file").suffix
     stored = f"{uuid.uuid4().hex}{ext}"
-    with open(UPLOAD_DIR / stored, "wb") as out:
-        out.write(f.file.read())
+    size = 0
+    try:
+        with open(UPLOAD_DIR / stored, "wb") as out:
+            while chunk := f.file.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_FILE_BYTES:
+                    raise HTTPException(400, f"附件「{Path(f.filename or 'file').name}」不能超过 20 MB")
+                out.write(chunk)
+    except Exception:
+        delete_upload(stored)
+        raise
     return stored, f.filename or stored
+
+
+def commit_round_with_file(session: Session, round_: ThesisRound,
+                           new_file: str | None = None, old_file: str | None = None) -> ThesisRound:
+    """数据库提交失败时撤销新文件；成功后再清理已替换的旧文件。"""
+    session.add(round_)
+    try:
+        session.commit()
+    except Exception:
+        session.rollback()
+        if new_file:
+            delete_upload(new_file)
+        raise
+    if old_file:
+        delete_upload(old_file)
+    session.refresh(round_)
+    return round_
 
 
 # ---------- 风险基准：按入学年份推算每个节点的「应该完成时间」 ----------
@@ -194,6 +222,7 @@ def project_view(p: ThesisProject, session: Session, config: dict | None = None)
         due = milestone_due(m.get("label", ""), m.get("track", 1), year, config)
         milestones.append({**m, "due": due.isoformat() if due else None})
     auto = compute_risk(p, stu, grade, config)
+    exemption_windows = ascension_windows(p, session)
     return {
         "id": p.id,
         "student_id": p.student_id,
@@ -205,6 +234,8 @@ def project_view(p: ThesisProject, session: Session, config: dict | None = None)
         "title": p.title,
         "stage": p.stage,
         "progress": p.progress,
+        "ascended_from_week": next((w["start_week"] for w in exemption_windows if w["end_week"] is None), None),
+        "ascension_windows": exemption_windows,
         "milestones": milestones,
         # 老师手动指定优先；没指定才回落到自动判定
         "risk": p.risk_override or auto,
@@ -302,6 +333,7 @@ def update_project(pid: int, data: ProjectIn, session: Session = Depends(get_ses
     p = session.get(ThesisProject, pid)
     if not p:
         raise HTTPException(404, "项目不存在")
+    was_ascended_since = ascended_from_week(p)
     # 学生只能改自己的题目；老师可改全部
     if user.role != "teacher":
         if p.student_id != user.id:
@@ -327,6 +359,8 @@ def update_project(pid: int, data: ProjectIn, session: Session = Depends(get_ses
             else:
                 raise HTTPException(400, f"风险等级只能是 {'/'.join(RISK_LEVELS)}")
     session.add(p)
+    if user.role == "teacher" and data.milestones is not None:
+        record_ascension_change(session, p, was_ascended_since)
     session.commit()
     return project_view(p, session)
 
@@ -372,10 +406,7 @@ async def submit_round(
         student_file=stored,
         student_file_orig=orig,
     )
-    session.add(r)
-    session.commit()
-    session.refresh(r)
-    return r
+    return commit_round_with_file(session, r, new_file=stored)
 
 
 @router.put("/rounds/{rid}")
@@ -400,23 +431,17 @@ async def update_round(
     if r.teacher_comment or r.teacher_file:
         raise HTTPException(400, "老师已批注，不能再修改")
     r.student_text = text
+    old_file = None
+    new_file = None
     if file and file.filename:
-        # 替换附件：删掉旧文件
-        if r.student_file:
-            old = UPLOAD_DIR / r.student_file
-            if old.exists():
-                old.unlink()
-        r.student_file, r.student_file_orig = save_upload(file)
+        old_file = r.student_file
+        new_file, r.student_file_orig = save_upload(file)
+        r.student_file = new_file
     elif keep_file == "0" and r.student_file:
-        old = UPLOAD_DIR / r.student_file
-        if old.exists():
-            old.unlink()
+        old_file = r.student_file
         r.student_file = None
         r.student_file_orig = None
-    session.add(r)
-    session.commit()
-    session.refresh(r)
-    return r
+    return commit_round_with_file(session, r, new_file=new_file, old_file=old_file)
 
 
 @router.post("/rounds/{rid}/feedback")
@@ -431,13 +456,14 @@ async def feedback_round(
     if not r:
         raise HTTPException(404, "记录不存在")
     r.teacher_comment = comment
+    old_file = None
+    new_file = None
     if file and file.filename:
-        r.teacher_file, r.teacher_file_orig = save_upload(file)
+        old_file = r.teacher_file
+        new_file, r.teacher_file_orig = save_upload(file)
+        r.teacher_file = new_file
     r.feedback_at = datetime.utcnow()
-    session.add(r)
-    session.commit()
-    session.refresh(r)
-    return r
+    return commit_round_with_file(session, r, new_file=new_file, old_file=old_file)
 
 
 @router.get("/files/{stored_name}")

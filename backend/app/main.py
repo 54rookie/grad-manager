@@ -108,8 +108,8 @@ if FRONTEND_DIST.exists():
     def spa(full_path: str):
         if full_path.startswith("api/"):
             raise HTTPException(404, "Not Found")
-        candidate = FRONTEND_DIST / full_path
-        if full_path and candidate.is_file():
+        candidate = (FRONTEND_DIST / full_path).resolve()
+        if full_path and candidate.is_relative_to(FRONTEND_DIST.resolve()) and candidate.is_file():
             return FileResponse(candidate)
         return FileResponse(FRONTEND_DIST / "index.html")
 
